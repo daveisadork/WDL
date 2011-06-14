@@ -469,6 +469,7 @@ typedef float CGFloat;
 #elif defined(SWELL_TARGET_GDK)
 
 #include <gdk/gdk.h>
+#include <cairo/cairo.h>
 #include <gdk/gdkkeysyms.h>
 
 #else

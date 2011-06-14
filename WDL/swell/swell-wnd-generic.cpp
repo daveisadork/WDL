@@ -59,7 +59,6 @@ void SWELL_initargs(int *argc, char ***argv)
     SWELL_gdk_active = gdk_init_check(argc,argv) ? 1 : -1;
     if (SWELL_gdk_active > 0)
     {
-      gdk_rgb_init(); // maybe not necessary?
       gdk_event_handler_set(swell_gdkEventHandler,NULL,NULL);
     }
   }
@@ -136,9 +135,9 @@ static void swell_manageOSwindow(HWND hwnd, bool wantfocus)
         attr.height = r.bottom-r.top;
         attr.wclass = GDK_INPUT_OUTPUT;
         attr.window_type = GDK_WINDOW_TOPLEVEL;
-        attr.colormap = gdk_rgb_get_cmap();
+        //attr.colormap = gdk_rgb_get_cmap();
                          
-        hwnd->m_oswindow = gdk_window_new(owner ? owner->m_oswindow : NULL,&attr,GDK_WA_X|GDK_WA_Y|GDK_WA_COLORMAP);
+        hwnd->m_oswindow = gdk_window_new(owner ? owner->m_oswindow : NULL,&attr,GDK_WA_X|GDK_WA_Y);
  
         if (hwnd->m_oswindow) 
         {
@@ -169,9 +168,12 @@ void swell_OSupdateWindowToScreen(HWND hwnd, RECT *rect)
   if (hwnd && hwnd->m_backingstore && hwnd->m_oswindow)
   {
     LICE_SubBitmap tmpbm(hwnd->m_backingstore,rect->left,rect->top,rect->right-rect->left,rect->bottom-rect->top);
-    GdkGC *gc=gdk_gc_new(hwnd->m_oswindow);
-    gdk_draw_rgb_32_image(hwnd->m_oswindow,gc,rect->left,rect->top,tmpbm.getWidth(),tmpbm.getHeight(),GDK_RGB_DITHER_NONE,(guchar*)tmpbm.getBits(),tmpbm.getRowSpan()*4);
-    g_object_unref(gc);
+    cairo_surface_t *surface=cairo_image_surface_create_for_data((guchar*)tmpbm.getBits(),CAIRO_FORMAT_RGB24,tmpbm.getWidth(),tmpbm.getHeight(),tmpbm.getRowSpan()*4);
+    cairo_t *cr=gdk_cairo_create(hwnd->m_oswindow);
+    cairo_set_source_surface(cr,surface,rect->left,rect->top);
+    cairo_paint(cr);
+    //gdk_draw_rgb_32_image(hwnd->m_oswindow,cr,rect->left,rect->top,tmpbm.getWidth(),tmpbm.getHeight(),GDK_RGB_DITHER_NONE,(guchar*)tmpbm.getBits(),tmpbm.getRowSpan()*4);
+    cairo_destroy(cr);
   }
 #endif
 }
@@ -181,17 +183,17 @@ static int swell_gdkConvertKey(int key)
   //gdk key to VK_ conversion
   switch(key)
   {
-  case GDK_Home: key = VK_HOME; break;
-  case GDK_End: key = VK_END; break;
-  case GDK_Up: key = VK_UP; break;
-  case GDK_Down: key = VK_DOWN; break;
-  case GDK_Left: key = VK_LEFT; break;
-  case GDK_Right: key = VK_RIGHT; break;
-  case GDK_Page_Up: key = VK_PRIOR; break;
-  case GDK_Page_Down: key = VK_NEXT; break;
-  case GDK_Insert: key = VK_INSERT; break;
-  case GDK_Delete: key = VK_DELETE; break;
-  case GDK_Escape: key = VK_ESCAPE; break;
+  case GDK_KEY_Home: key = VK_HOME; break;
+  case GDK_KEY_End: key = VK_END; break;
+  case GDK_KEY_Up: key = VK_UP; break;
+  case GDK_KEY_Down: key = VK_DOWN; break;
+  case GDK_KEY_Left: key = VK_LEFT; break;
+  case GDK_KEY_Right: key = VK_RIGHT; break;
+  case GDK_KEY_Page_Up: key = VK_PRIOR; break;
+  case GDK_KEY_Page_Down: key = VK_NEXT; break;
+  case GDK_KEY_Insert: key = VK_INSERT; break;
+  case GDK_KEY_Delete: key = VK_DELETE; break;
+  case GDK_KEY_Escape: key = VK_ESCAPE; break;
   }
   return key;
 }
@@ -281,8 +283,8 @@ static void swell_gdkEventHandler(GdkEvent *evt, gpointer data)
 
             // don't use GetClientRect(),since we're getting it pre-NCCALCSIZE etc
             {
-              gint w=0,h=0;
-              gdk_window_get_size(hwnd->m_oswindow,&w,&h);
+              gint px=0,py=0,w=0,h=0;
+              gdk_window_get_geometry(hwnd->m_oswindow,&px,&py,&w,&h);
               cr.left=cr.top=0;
               cr.right = w;
               cr.bottom = h;
@@ -304,10 +306,14 @@ static void swell_gdkEventHandler(GdkEvent *evt, gpointer data)
             {
               void SWELL_internalLICEpaint(HWND hwnd, LICE_IBitmap *bmout, int bmout_xpos, int bmout_ypos, bool forceref);
               SWELL_internalLICEpaint(hwnd, &tmpbm, r.left, r.top, forceref);
+              cairo_surface_t *surface=cairo_image_surface_create_for_data((guchar*)tmpbm.getBits(),CAIRO_FORMAT_RGB24,tmpbm.getWidth(),tmpbm.getHeight(),tmpbm.getRowSpan()*4);
+              cairo_t *dc=gdk_cairo_create(exp->window);
+              cairo_set_source_surface(dc,surface,r.left,r.top);
+              cairo_paint(dc);
+              
 
-              GdkGC *gc=gdk_gc_new(exp->window);
-              gdk_draw_rgb_32_image(exp->window,gc,r.left,r.top,tmpbm.getWidth(),tmpbm.getHeight(),GDK_RGB_DITHER_NONE,(guchar*)tmpbm.getBits(),tmpbm.getRowSpan()*4);
-              g_object_unref(gc);
+              //gdk_draw_rgb_32_image(exp->window,gc,r.left,r.top,tmpbm.getWidth(),tmpbm.getHeight(),GDK_RGB_DITHER_NONE,(guchar*)tmpbm.getBits(),tmpbm.getRowSpan()*4);
+              cairo_destroy(dc);
             }
 #endif
           }
@@ -935,8 +941,7 @@ void GetWindowContentViewRect(HWND hwnd, RECT *r)
   if (hwnd && hwnd->m_oswindow) 
   {
     gint w=0,h=0,px=0,py=0;
-    gdk_window_get_size(hwnd->m_oswindow,&w,&h);
-    gdk_window_get_origin(hwnd->m_oswindow,&px,&py); // this is probably unreliable but ugh (use get_geometry?)
+    gdk_window_get_geometry(hwnd->m_oswindow,&px,&py,&w,&h);
     r->left=px;
     r->top=py;
     r->right = px+w;
@@ -955,8 +960,8 @@ void GetClientRect(HWND hwnd, RECT *r)
 #ifdef SWELL_TARGET_GDK
   if (hwnd->m_oswindow)
   {
-    gint w=0,h=0;
-    gdk_window_get_size(hwnd->m_oswindow,&w,&h);
+    gint px=0,py=0,w=0,h=0;
+    gdk_window_get_geometry(hwnd->m_oswindow,&px,&py,&w,&h);
     r->right = w;
     r->bottom = h;
   }
