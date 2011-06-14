@@ -44,7 +44,7 @@ static DWORD s_lastMessagePos;
 
 #ifdef SWELL_TARGET_GDK
 
-static GdkWindow *SWELL_g_focus_oswindow;
+static GtkWidget *SWELL_g_focus_oswindow;
 static int SWELL_gdk_active;
 
 HWND ChildWindowFromPoint(HWND h, POINT p);
@@ -56,17 +56,19 @@ void SWELL_initargs(int *argc, char ***argv)
   if (!SWELL_gdk_active) 
   {
    // maybe make the main app call this with real parms
-    SWELL_gdk_active = gdk_init_check(argc,argv) ? 1 : -1;
+    
+    SWELL_gdk_active = gtk_init_check (NULL,NULL) ? 1 : -1;
     if (SWELL_gdk_active > 0)
     {
       gdk_event_handler_set(swell_gdkEventHandler,NULL,NULL);
+      
     }
   }
 }
 
 static bool swell_initwindowsys()
 {
-  if (!SWELL_gdk_active) 
+  if (!SWELL_gdk_active)
   {
    // maybe make the main app call this with real parms
     int argc=1;
@@ -76,10 +78,13 @@ static bool swell_initwindowsys()
     argv[0] = buf;
     argv[1] = buf;
     char **pargv = argv;
-    SWELL_initargs(&argc,&pargv);
+
+    if (!SWELL_gdk_active) {
+      SWELL_initargs(&argc,&pargv);
+    }
   }
-  
-  return SWELL_gdk_active>0;
+
+  return (SWELL_gdk_active>0);
 }
 
 static void swell_destroyOSwindow(HWND hwnd)
@@ -87,7 +92,7 @@ static void swell_destroyOSwindow(HWND hwnd)
   if (hwnd && hwnd->m_oswindow)
   {
     if (SWELL_g_focus_oswindow == hwnd->m_oswindow) SWELL_g_focus_oswindow=NULL;
-    gdk_window_destroy(hwnd->m_oswindow);
+    gtk_widget_destroy(hwnd->m_oswindow);
     hwnd->m_oswindow=NULL;
 #ifdef SWELL_LICE_GDI
     delete hwnd->m_backingstore;
@@ -99,7 +104,7 @@ static void swell_setOSwindowtext(HWND hwnd)
 {
   if (hwnd && hwnd->m_oswindow)
   {
-    gdk_window_set_title(hwnd->m_oswindow, hwnd->m_title ? hwnd->m_title : (char*)"");
+    gtk_window_set_title(GTK_WINDOW(hwnd->m_oswindow), hwnd->m_title ? hwnd->m_title : (char*)"");
   }
 }
 static void swell_manageOSwindow(HWND hwnd, bool wantfocus)
@@ -126,7 +131,7 @@ static void swell_manageOSwindow(HWND hwnd, bool wantfocus)
 */
  
         RECT r = hwnd->m_position;
-        GdkWindowAttr attr={0,};
+        /*GdkWindowAttr attr={0,};
         attr.title = "";
         attr.event_mask = GDK_ALL_EVENTS_MASK|GDK_EXPOSURE_MASK;
         attr.x = r.left;
@@ -135,24 +140,29 @@ static void swell_manageOSwindow(HWND hwnd, bool wantfocus)
         attr.height = r.bottom-r.top;
         attr.wclass = GDK_INPUT_OUTPUT;
         attr.window_type = GDK_WINDOW_TOPLEVEL;
-        //attr.colormap = gdk_rgb_get_cmap();
+        attr.colormap = gdk_rgb_get_cmap();*/
                          
-        hwnd->m_oswindow = gdk_window_new(owner ? owner->m_oswindow : NULL,&attr,GDK_WA_X|GDK_WA_Y);
- 
+        hwnd->m_oswindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+        
         if (hwnd->m_oswindow) 
         {
-          gdk_window_set_user_data(hwnd->m_oswindow,hwnd);
-          gdk_window_move_resize(hwnd->m_oswindow,r.left,r.top,r.right-r.left,r.bottom-r.top);
-          if (!wantfocus) gdk_window_set_focus_on_map(hwnd->m_oswindow,false);
+          GtkWidget *da=gtk_drawing_area_new ();
+          gtk_container_add (GTK_CONTAINER(hwnd->m_oswindow),da);
+          //gdk_window_set_user_data(hwnd->m_oswindow->window,hwnd);
+          gtk_window_move(GTK_WINDOW(hwnd->m_oswindow), r.left, r.top);
+          gtk_window_resize(GTK_WINDOW(hwnd->m_oswindow), r.right-r.left, r.bottom-r.top);
+          //gdk_window_move_resize(GTK_WINDOW(hwnd->m_oswindow),r.left,r.top,r.right-r.left,r.bottom-r.top);
+          if (!wantfocus) gtk_window_set_focus_on_map(GTK_WINDOW(hwnd->m_oswindow),false);
           HWND DialogBoxIsActive();
           if (!(hwnd->m_style & WS_CAPTION)) 
           {
-            gdk_window_set_override_redirect(hwnd->m_oswindow,true);
+          	gtk_window_set_decorated(GTK_WINDOW(hwnd->m_oswindow), false);
+            //gdk_window_set_override_redirect(hwnd->m_oswindow,true);
           }
           else if (/*hwnd == DialogBoxIsActive() || */ !(hwnd->m_style&WS_THICKFRAME))
-            gdk_window_set_type_hint(hwnd->m_oswindow,GDK_WINDOW_TYPE_HINT_DIALOG); // this is a better default behavior
+            gtk_window_set_type_hint(GTK_WINDOW(hwnd->m_oswindow),GDK_WINDOW_TYPE_HINT_DIALOG); // this is a better default behavior
 
-          gdk_window_show(hwnd->m_oswindow);
+          gtk_widget_show_all(hwnd->m_oswindow);
         }
       }
     }
@@ -169,7 +179,8 @@ void swell_OSupdateWindowToScreen(HWND hwnd, RECT *rect)
   {
     LICE_SubBitmap tmpbm(hwnd->m_backingstore,rect->left,rect->top,rect->right-rect->left,rect->bottom-rect->top);
     cairo_surface_t *surface=cairo_image_surface_create_for_data((guchar*)tmpbm.getBits(),CAIRO_FORMAT_RGB24,tmpbm.getWidth(),tmpbm.getHeight(),tmpbm.getRowSpan()*4);
-    cairo_t *cr=gdk_cairo_create(hwnd->m_oswindow);
+    GdkWindow *wnd = gtk_widget_get_window (GTK_WIDGET(hwnd->m_oswindow));
+    cairo_t *cr=gdk_cairo_create(wnd);
     cairo_set_source_surface(cr,surface,rect->left,rect->top);
     cairo_paint(cr);
     //gdk_draw_rgb_32_image(hwnd->m_oswindow,cr,rect->left,rect->top,tmpbm.getWidth(),tmpbm.getHeight(),GDK_RGB_DITHER_NONE,(guchar*)tmpbm.getBits(),tmpbm.getRowSpan()*4);
@@ -265,7 +276,7 @@ static void swell_gdkEventHandler(GdkEvent *evt, gpointer data)
       if (evt->type == GDK_FOCUS_CHANGE)
       {
         GdkEventFocus *fc = (GdkEventFocus *)evt;
-        if (fc->in) SWELL_g_focus_oswindow = hwnd ? fc->window : NULL;
+        //if (fc->in) SWELL_g_focus_oswindow = hwnd ? fc->window : NULL;
       }
 
       if (hwnd) switch (evt->type)
@@ -284,7 +295,7 @@ static void swell_gdkEventHandler(GdkEvent *evt, gpointer data)
             // don't use GetClientRect(),since we're getting it pre-NCCALCSIZE etc
             {
               gint px=0,py=0,w=0,h=0;
-              gdk_window_get_geometry(hwnd->m_oswindow,&px,&py,&w,&h);
+              gdk_window_get_geometry(((GdkEventAny*)evt)->window,&px,&py,&w,&h);
               cr.left=cr.top=0;
               cr.right = w;
               cr.bottom = h;
@@ -306,6 +317,7 @@ static void swell_gdkEventHandler(GdkEvent *evt, gpointer data)
             {
               void SWELL_internalLICEpaint(HWND hwnd, LICE_IBitmap *bmout, int bmout_xpos, int bmout_ypos, bool forceref);
               SWELL_internalLICEpaint(hwnd, &tmpbm, r.left, r.top, forceref);
+				
               cairo_surface_t *surface=cairo_image_surface_create_for_data((guchar*)tmpbm.getBits(),CAIRO_FORMAT_RGB24,tmpbm.getWidth(),tmpbm.getHeight(),tmpbm.getRowSpan()*4);
               cairo_t *dc=gdk_cairo_create(exp->window);
               cairo_set_source_surface(dc,surface,r.left,r.top);
@@ -420,6 +432,8 @@ static void swell_gdkEventHandler(GdkEvent *evt, gpointer data)
       }
 
     }
+	printf("doing gtk_main_do_event(%d)\n",evt->type);
+    gtk_main_do_event (evt);
 }
 
 void swell_runOSevents()
@@ -429,15 +443,19 @@ void swell_runOSevents()
 //    static GMainLoop *loop;
 //    if (!loop) loop = g_main_loop_new(NULL,TRUE);
     gdk_window_process_all_updates();
+    
 
     GdkEvent *evt;
-    while (gdk_events_pending() && (evt = gdk_event_get()))
+    while (gtk_events_pending() && (evt = gdk_event_get()))
     {
       swell_gdkEventHandler(evt,(gpointer)1);
+/*      gtk_main_do_event (evt);
+      gtk_main_iteratio); */
       gdk_event_free(evt);
     }
   }
 }
+
 
 #else
 void SWELL_initargs(int *argc, char ***argv)
@@ -477,6 +495,8 @@ HWND__::HWND__(HWND par, int wID, RECT *wndr, const char *label, bool visible, W
      m_menu=NULL;
 #ifdef SWELL_TARGET_GDK
      m_oswindow = 0;
+#elif SWELL_TARGET_QT
+     m_oswindow = NULL;
 #endif
 
 #ifdef SWELL_LICE_GDI
@@ -738,7 +758,7 @@ void EnableWindow(HWND hwnd, int enable)
   if (!hwnd) return;
   hwnd->m_enabled=!!enable;
 #ifdef SWELL_TARGET_GDK
-  if (hwnd->m_oswindow) gdk_window_set_accept_focus(hwnd->m_oswindow,!!enable);
+  if (hwnd->m_oswindow) gtk_window_set_accept_focus(GTK_WINDOW(hwnd->m_oswindow),!!enable);
 #endif
 
   if (!enable && SWELL_g_focuswnd == hwnd) SWELL_g_focuswnd = 0;
@@ -752,11 +772,13 @@ void SetFocus(HWND hwnd)
   SWELL_g_focuswnd = hwnd;
 #ifdef SWELL_TARGET_GDK
   while (hwnd && !hwnd->m_oswindow) hwnd=hwnd->m_parent;
-  if (hwnd) gdk_window_raise(hwnd->m_oswindow);
+  if (hwnd) gtk_window_present(GTK_WINDOW(hwnd->m_oswindow));
   if (hwnd && hwnd->m_oswindow != SWELL_g_focus_oswindow)
   {
-    gdk_window_focus(SWELL_g_focus_oswindow = hwnd->m_oswindow,GDK_CURRENT_TIME);
+    gtk_window_activate_focus(GTK_WINDOW(hwnd->m_oswindow));
+    SWELL_g_focus_oswindow = hwnd->m_oswindow;
   }
+
 #endif
 }
 void SetForegroundWindow(HWND hwnd)
@@ -858,9 +880,9 @@ void ScreenToClient(HWND hwnd, POINT *p)
 #ifdef SWELL_TARGET_GDK
   if (tmp && tmp->m_oswindow)
   {
-    GdkWindow *wnd = tmp->m_oswindow;
-    gint px=0,py=0;
-    gdk_window_get_origin(wnd,&px,&py); // this is probably unreliable but ugh (use get_geometry?)
+    GdkWindow *wnd = gtk_widget_get_window(GTK_WIDGET(tmp->m_oswindow));
+    gint px=0,py=0,w=0,h=0;
+    gdk_window_get_geometry(wnd,&px,&py,&w,&h);
     x-=px;
     y-=py;
   }
@@ -900,9 +922,9 @@ void ClientToScreen(HWND hwnd, POINT *p)
 #ifdef SWELL_TARGET_GDK
   if (tmp && tmp->m_oswindow)
   {
-    GdkWindow *wnd = tmp->m_oswindow;
-    gint px=0,py=0;
-    gdk_window_get_origin(wnd,&px,&py); // this is probably unreliable but ugh (use get_geometry?)
+    GdkWindow *wnd = gtk_widget_get_window(GTK_WIDGET(tmp->m_oswindow));
+    gint px=0,py=0,w=0,h=0;
+    gdk_window_get_geometry(wnd,&px,&py,&w,&h);
     x+=px;
     y+=py;
   }
@@ -919,7 +941,8 @@ bool GetWindowRect(HWND hwnd, RECT *r)
   if (hwnd->m_oswindow)
   {
     GdkRectangle rc;
-    gdk_window_get_frame_extents(hwnd->m_oswindow,&rc);
+    GdkWindow *wnd = gtk_widget_get_window(GTK_WIDGET(hwnd->m_oswindow));
+    gdk_window_get_frame_extents(wnd,&rc);
     r->left=rc.x;
     r->top=rc.y;
     r->right=rc.x+rc.width;
@@ -941,7 +964,8 @@ void GetWindowContentViewRect(HWND hwnd, RECT *r)
   if (hwnd && hwnd->m_oswindow) 
   {
     gint w=0,h=0,px=0,py=0;
-    gdk_window_get_geometry(hwnd->m_oswindow,&px,&py,&w,&h);
+    GdkWindow *wnd = gtk_widget_get_window(GTK_WIDGET(hwnd->m_oswindow));
+    gdk_window_get_geometry(wnd,&px,&py,&w,&h);
     r->left=px;
     r->top=py;
     r->right = px+w;
@@ -961,7 +985,8 @@ void GetClientRect(HWND hwnd, RECT *r)
   if (hwnd->m_oswindow)
   {
     gint px=0,py=0,w=0,h=0;
-    gdk_window_get_geometry(hwnd->m_oswindow,&px,&py,&w,&h);
+    GdkWindow *wnd = gtk_widget_get_window(GTK_WIDGET(hwnd->m_oswindow));
+    gdk_window_get_geometry(wnd,&px,&py,&w,&h);
     r->right = w;
     r->bottom = h;
   }
@@ -1050,9 +1075,9 @@ void SetWindowPos(HWND hwnd, HWND zorder, int x, int y, int cx, int cy, int flag
     if (hwnd->m_oswindow) 
     {
       //printf("repos %d,%d,%d,%d, %d\n",f.left,f.top,f.right,f.bottom,reposflag);
-      if ((reposflag&3)==3) gdk_window_move_resize(hwnd->m_oswindow,f.left,f.top,f.right-f.left,f.bottom-f.top);
-      else if (reposflag&2) gdk_window_resize(hwnd->m_oswindow,f.right-f.left,f.bottom-f.top);
-      else if (reposflag&1) gdk_window_move(hwnd->m_oswindow,f.left,f.top);
+      /*if ((reposflag&3)==3) gdk_window_move_resize(GTK_WINDOW(hwnd->m_oswindow),f.left,f.top,f.right-f.left,f.bottom-f.top);
+      else */if (reposflag&2) gtk_window_resize(GTK_WINDOW(hwnd->m_oswindow),f.right-f.left,f.bottom-f.top);
+      else if (reposflag&1) gtk_window_move(GTK_WINDOW(hwnd->m_oswindow),f.left,f.top);
     }
     else // top level windows above get their position from gdk and cache it in m_position
 #endif
@@ -2223,7 +2248,7 @@ void UpdateWindow(HWND hwnd)
   {
 #ifdef SWELL_TARGET_GDK
     while (hwnd && !hwnd->m_oswindow) hwnd=hwnd->m_parent;
-    if (hwnd && hwnd->m_oswindow) gdk_window_process_updates(hwnd->m_oswindow,true);
+    if (hwnd && hwnd->m_oswindow) gtk_widget_queue_draw(GTK_WIDGET(hwnd->m_oswindow));
 #endif
   }
 }
@@ -2262,8 +2287,8 @@ void InvalidateRect(HWND hwnd, RECT *r, int eraseBk)
     if (hwnd->m_wndproc) hwnd->m_wndproc(hwnd,WM_NCCALCSIZE,0,(LPARAM)&tr);
     rect.x += tr.left;
     rect.y += tr.top;
-
-    gdk_window_invalidate_rect(hwnd->m_oswindow,hwnd!=hwndCall || r ? &rect : NULL,true);
+    GdkWindow *wnd = gtk_widget_get_window(hwnd->m_oswindow);
+    gdk_window_invalidate_rect(wnd,hwnd!=hwndCall || r ? &rect : NULL,true);
   }
 #endif
 }
@@ -2984,7 +3009,8 @@ WORD GetAsyncKeyState(int key)
     GdkModifierType mod=(GdkModifierType)0;
     HWND h = GetFocus();
     while (h && !h->m_oswindow) h = h->m_parent;
-    gdk_window_get_pointer(h?  h->m_oswindow : gdk_get_default_root_window(),NULL,NULL,&mod);
+    GdkWindow *wnd = gtk_widget_get_window(GTK_WIDGET(h->m_oswindow));
+    gdk_window_get_pointer(h? wnd : gdk_get_default_root_window(),NULL,NULL,&mod);
  
     if (key == VK_LBUTTON) return (mod&GDK_BUTTON1_MASK)?0x8000:0;
     if (key == VK_MBUTTON) return (mod&GDK_BUTTON2_MASK)?0x8000:0;

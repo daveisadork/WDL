@@ -468,8 +468,9 @@ typedef float CGFloat;
 
 #elif defined(SWELL_TARGET_GDK)
 
-#include <gdk/gdk.h>
 #include <cairo/cairo.h>
+#include <gdk/gdk.h>
+#include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 
 #else
@@ -503,7 +504,7 @@ struct HWND__
   
 
 #ifdef SWELL_TARGET_GDK
-  GdkWindow *m_oswindow;
+  GtkWidget *m_oswindow;
 #endif
   char *m_title;
 

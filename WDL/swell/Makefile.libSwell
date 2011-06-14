@@ -33,10 +33,10 @@ LICE_OBJS = lice.o  lice_arc.o lice_colorspace.o lice_image.o lice_jpg.o lice_li
 OBJS = $(SWELL_OBJS)
 
 ifndef NOGDK
-GDK_CFLAGS = -DSWELL_TARGET_GDK $(shell pkg-config --cflags gdk-3.0) -DSWELL_LICE_GDI
+GDK_CFLAGS = -DSWELL_TARGET_GDK $(shell pkg-config --cflags gdk-3.0 gtk+-3.0) -DSWELL_LICE_GDI
 CFLAGS += $(GDK_CFLAGS)
 CXXFLAGS += $(GDK_CFLAGS)
-LINKEXTRA += $(shell pkg-config --libs gdk-3.0)
+LINKEXTRA += $(shell pkg-config --libs gdk-3.0 gtk+-3.0)
 OBJS += $(LICE_OBJS)
 endif
 
