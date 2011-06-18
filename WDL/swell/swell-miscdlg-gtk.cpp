@@ -1,5 +1,5 @@
-/* Cockos SWELL (Simple/Small Win32 Emulation Layer for Linux
-   Copyright (C) 2006-2008, Cockos, Inc.
+/* Cockos SWELL (Simple/Small Win32 Emulation Layer for Losers (who use OS X))
+   Copyright (C) 2006-2007, Cockos, Inc.
 
     This software is provided 'as-is', without any express or implied
     warranty.  In no event will the authors be held liable for any damages
@@ -22,120 +22,222 @@
 
     These APIs don't all match the Windows equivelents, but are close enough to make it not too much trouble.
 
- 
-    (GTK version)
   */
 
 
 #ifndef SWELL_PROVIDED_BY_APP
 
+#include "swell.h"
+#include "swell-internal.h"
+#include "swell-dlggen.h"
 #include <gtk/gtk.h>
 
-#include "swell.h"
-
-void BrowseFile_SetTemplate(int dlgid, DLGPROC dlgProc, struct SWELL_DialogResourceIndex *reshead)
+static const char *BFSF_Templ_dlgid;
+static DLGPROC BFSF_Templ_dlgproc;
+static struct SWELL_DialogResourceIndex *BFSF_Templ_reshead;
+void BrowseFile_SetTemplate(const char *dlgid, DLGPROC dlgProc, struct SWELL_DialogResourceIndex *reshead)
 {
+  BFSF_Templ_reshead=reshead;
+  BFSF_Templ_dlgid=dlgid;
+  BFSF_Templ_dlgproc=dlgProc;
 }
 
 // return true
 bool BrowseForSaveFile(const char *text, const char *initialdir, const char *initialfile, const char *extlist,
                        char *fn, int fnsize)
 {
-  return false;
+	printf("browse for save file - text: %s, initialdir: %s, initialfile: %s, extlist: %s \n", text, initialdir, initialfile, extlist);
+	bool ret = false;
+	GtkWidget *dialog;
+	dialog = gtk_file_chooser_dialog_new (text,
+				      NULL,
+				      GTK_FILE_CHOOSER_ACTION_SAVE,
+				      GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+				      GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+				      NULL);
+	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
+	gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), initialdir);
+    gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), initialfile);
+	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+	{
+    	fn = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (dialog));
+    	fnsize = strlen(fn);
+    	ret = true;
+  	}
+	gtk_widget_destroy (dialog);
+    return ret;
 }
 
 bool BrowseForDirectory(const char *text, const char *initialdir, char *fn, int fnsize)
 {
-  return false;
+	printf("browse for directory\n");
+	bool ret = false;
+	GtkWidget *dialog;
+	dialog = gtk_file_chooser_dialog_new (text,
+				      NULL,
+				      GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
+				      GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+				      GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+				      NULL);
+	gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), initialdir);
+	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+	{
+    	fn = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (dialog));
+    	fnsize = strlen(fn);
+    	ret = true;
+  	}
+	gtk_widget_destroy (dialog);
+    return ret;
 }
-
 
 
 char *BrowseForFiles(const char *text, const char *initialdir, 
                      const char *initialfile, bool allowmul, const char *extlist)
 {
-  return NULL;
+	printf("browse for files\n");
+	char* ret = NULL;
+	GtkWidget *dialog;
+	dialog = gtk_file_chooser_dialog_new (text,
+				      NULL,
+				      GTK_FILE_CHOOSER_ACTION_OPEN,
+				      GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+				      GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+				      NULL);
+	gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), initialdir);
+    gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), initialfile);
+	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+	{
+    	ret = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (dialog));
+  	}
+	gtk_widget_destroy (dialog);
+    return ret;
 }
 
-
-static void messagebox_callback( GtkWidget *widget, gpointer   data )
+/*
+static LRESULT WINAPI swellMessageBoxProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-  if (data) *(char*)data=1;
-  gtk_main_quit ();
-}
+	printf("swellMessageBoxProc()\n");
+  switch (uMsg)
+  {
+    case WM_CREATE:
+      if (lParam)  // swell-specific
+      {
+        SetWindowLong(hwnd,GWL_WNDPROC,(LPARAM)SwellDialogDefaultWindowProc);
+        SetWindowLong(hwnd,DWL_DLGPROC,(LPARAM)swellMessageBoxProc);
+        void **parms = (void **)lParam;
+        if (parms[1]) SetWindowText(hwnd,(const char*)parms[1]);
+
+
+        int nbuttons=1;
+        const char *buttons[3] = { "OK", "", "" };
+        int button_ids[3] = {IDOK,0,0};
+        int mode =  ((int)(INT_PTR)parms[2]);
+        if (mode == MB_RETRYCANCEL) { buttons[0]="Retry"; button_ids[0]=IDRETRY;  }
+        if (mode == MB_YESNO || mode == MB_YESNOCANCEL) { buttons[0]="Yes"; button_ids[0] = IDYES;  buttons[nbuttons] = "No"; button_ids[nbuttons] = IDNO; nbuttons++; }
+        if (mode == MB_OKCANCEL || mode == MB_YESNOCANCEL || mode == MB_RETRYCANCEL) { buttons[nbuttons] = "Cancel"; button_ids[nbuttons] = IDCANCEL; nbuttons++; }
+
+        SWELL_MakeSetCurParms(1,1,0,0,hwnd,false,false);
+        RECT labsize = {0,0,300,80};
+        HWND lab = SWELL_MakeLabel(-1,parms[0] ? (const char *)parms[0] : "", 0, 0,0,10,10,0); //we'll resize this manually
+        if (lab && parms[0])
+        {
+          HDC dc=GetDC(lab); 
+          DrawText(dc,(const char *)parms[0],-1,&labsize,DT_CALCRECT);// if dc isnt valid yet, try anyway
+          if (dc) ReleaseDC(lab,dc);
+        }
+        
+        int buttonh=12;
+        int buttonw = 35, buttonspace=5;
+        int buttontotalw = nbuttons * buttonw + (nbuttons-1)*buttonspace;
+        if (labsize.right < buttontotalw) labsize.right = buttontotalw;
+        if (labsize.bottom < 40) labsize.bottom = 40;
+
+        int x,xpos = labsize.right/2 - buttontotalw/2;
+        for (x = 0; x < nbuttons; x ++)
+        {
+          SWELL_MakeButton(0,buttons[x],button_ids[x],xpos,labsize.bottom+4,buttonw,buttonh,0);
+          xpos += buttonw + buttonspace;
+        }
+
+        SWELL_MakeSetCurParms(1,1,0,0,NULL,false,false);
+        if (lab) SetWindowPos(lab,NULL,0,0,labsize.right+3,labsize.bottom,SWP_NOACTIVATE|SWP_NOZORDER);
+        SetWindowPos(hwnd,NULL,0,0,labsize.right+10,labsize.bottom+buttonh+4,SWP_NOACTIVATE|SWP_NOZORDER|SWP_NOMOVE);
+      }
+    break;
+    case WM_COMMAND:
+      if (LOWORD(wParam) && HIWORD(wParam) == BN_CLICKED ) EndDialog(hwnd,LOWORD(wParam));
+    break;
+    case WM_CLOSE:
+      if (GetDlgItem(hwnd,IDCANCEL)) EndDialog(hwnd,IDCANCEL);
+      else if (GetDlgItem(hwnd,IDNO)) EndDialog(hwnd,IDNO);
+      else if (GetDlgItem(hwnd,IDYES)) EndDialog(hwnd,IDYES);
+      else EndDialog(hwnd,IDOK);
+    break;
+  }
+  return 0;
+}*/
 
 int MessageBox(HWND hwndParent, const char *text, const char *caption, int type)
 {
-  char has_clicks[3]={0,};
-  int ids[3]={0,};
-  const char *lbls[3]={0,};
-  if (type == MB_OKCANCEL)
+  printf("MessageBox: %s %s\n",text,caption);
+  GtkWidget *dialog = gtk_message_dialog_new (hwndParent?GTK_WINDOW(hwndParent->m_oswindow):NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_OTHER, GTK_BUTTONS_NONE, "%s", text);
+  gtk_window_set_title(GTK_WINDOW(dialog), caption);
+  if (type == MB_OK) {
+  	gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_OK, IDOK, NULL);
+  } else if (type == MB_OKCANCEL) {
+  	gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_OK, IDOK, GTK_STOCK_CANCEL, IDCANCEL, NULL);
+  } else if (type == MB_YESNO) {
+  	gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_YES, IDYES, GTK_STOCK_NO, IDNO, NULL);
+  } else if (type == MB_RETRYCANCEL) {
+  	gtk_dialog_add_buttons(GTK_DIALOG(dialog), "Retry", IDRETRY, GTK_STOCK_CANCEL, IDCANCEL, NULL);
+  } else if (type == MB_YESNOCANCEL) {
+  	gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_YES, IDYES, GTK_STOCK_NO, IDNO, GTK_STOCK_CANCEL, IDCANCEL, NULL);
+  }
+  int ret = gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy (dialog);
+  return ret;
+  
+  //const void *parms[3]= {text,caption,(void*)(INT_PTR)type} ;
+  //return DialogBoxParam(NULL,NULL,NULL,swellMessageBoxProc,(LPARAM)parms);
+
+#if 0
+  int ret=0;
+  
+  if (type == MB_OK)
   {
-    ids[0]=IDOK; lbls[0]="OK";
-    ids[1]=IDCANCEL; lbls[1]="Cancel";
+    // todo
+    ret=IDOK;
+  }	
+  else if (type == MB_OKCANCEL)
+  {
+    ret = 1; // todo
+    if (ret) ret=IDOK;
+    else ret=IDCANCEL;
   }
   else if (type == MB_YESNO)
   {
-    ids[0]=IDYES; lbls[0]="Yes";
-    ids[1]=IDNO; lbls[1]="No";
+    ret = 1 ; // todo
+    if (ret) ret=IDYES;
+    else ret=IDNO;
+  }
+  else if (type == MB_RETRYCANCEL)
+  {
+    ret = 1; // todo
+
+    if (ret) ret=IDRETRY;
+    else ret=IDCANCEL;
   }
   else if (type == MB_YESNOCANCEL)
   {
-    ids[0]=IDYES; lbls[0]="Yes";
-    ids[1]=IDNO; lbls[1]="No";
-    ids[2]=IDCANCEL; lbls[2]="Cancel";
-  }
-  else // MB_OK?
-  {
-    ids[0]=IDOK; lbls[0]="OK";
-  }	
+    ret = 1; // todo
 
-  GtkWidget *window;
-  window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_modal(GTK_WINDOW(window), true);
-  gtk_window_set_destroy_with_parent(GTK_WINDOW(window), true);
-  gtk_window_set_resizable(GTK_WINDOW(window), false);
-  gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
-  gtk_window_set_title(GTK_WINDOW(window), caption);
-  g_signal_connect (G_OBJECT (window), "destroy",
-		      G_CALLBACK (messagebox_callback), NULL);
-
-  gtk_container_set_border_width (GTK_CONTAINER (window), 10);
-  
-  GtkWidget *outer_container = gtk_vbox_new(false, 4);
-  {
-    GtkWidget *label = gtk_label_new(text);
-    gtk_container_add(GTK_CONTAINER(outer_container),label);
-    gtk_widget_show(label);
+    if (ret == 1) ret=IDYES;
+    else if (ret==-1) ret=IDNO;
+    else ret=IDCANCEL;
   }
-  {
-    GtkWidget *con = gtk_hbutton_box_new();
-    int x;
-    for(x=0;x<3&&ids[x];x++)
-    {
-      GtkWidget *but = gtk_button_new_with_label(lbls[x]);
-      g_signal_connect(G_OBJECT(but), "clicked", G_CALLBACK(messagebox_callback), &has_clicks[x]);
-      gtk_container_add(GTK_CONTAINER(con), but);
-      gtk_widget_show(but);
-    }
-    gtk_container_add(GTK_CONTAINER(outer_container),con);
-    gtk_widget_show(con);
-  }
- 
   
-  gtk_container_add(GTK_CONTAINER(window), outer_container);
-  gtk_widget_show(outer_container);
-  gtk_widget_show(window);
-  
-  gtk_main ();
-  
-  int x;
-  for(x=0;x<3 && ids[x]; x++)
-  {
-    if (has_clicks[x]) return ids[x];
-  }
-  if (x>0) x--;
-  return ids[x];
+  return ret; 
+#endif
 }
 
 #endif
