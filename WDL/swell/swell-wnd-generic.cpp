@@ -66,7 +66,7 @@ void SWELL_initargs(int *argc, char ***argv)
 
 static bool swell_initwindowsys()
 {
-	printf("swell_initwindowsys()\n");
+	//printf("swell_initwindowsys()\n");
   if (!SWELL_gdk_active)
   {
    // maybe make the main app call this with real parms
@@ -105,30 +105,47 @@ static void swell_setOSwindowtext(HWND hwnd)
 	//printf("swell_setOSwindowtext()\n");
   if (hwnd && hwnd->m_oswindow)
   {
-    gtk_window_set_title(GTK_WINDOW(hwnd->m_oswindow), hwnd->m_title ? hwnd->m_title : (char*)"");
+    if GTK_IS_WINDOW(hwnd->m_oswindow)
+      gtk_window_set_title(GTK_WINDOW(hwnd->m_oswindow), hwnd->m_title ? hwnd->m_title : (char*)"");
+    else if GTK_IS_LABEL(hwnd->m_oswindow)
+      gtk_label_set_text(GTK_LABEL(hwnd->m_oswindow), hwnd->m_title ? hwnd->m_title : (char*)"");
+    else if GTK_IS_BUTTON(hwnd->m_oswindow)
+      gtk_button_set_label(GTK_BUTTON(hwnd->m_oswindow), hwnd->m_title ? hwnd->m_title : (char*)"");
   }
 }
 
+#ifdef GTK2
+gboolean swell_onDraw(GtkWidget *widget, GdkEvent *event, gpointer data)
+#else
 gboolean swell_onDraw(GtkWidget *widget, cairo_t *cr, gpointer data)
+#endif
 {
 	//printf("swell_onDraw()\n");
   HWND hwnd = (HWND) data;
-  if (!hwnd->m_backingstore) hwnd->m_backingstore = new LICE_MemBitmap;
-  GtkAllocation allocation;
-  gtk_widget_get_allocation (widget,&allocation);
-  bool forceref = hwnd->m_backingstore->resize(allocation.width-allocation.x,allocation.height-allocation.y);
-  if (hwnd && hwnd->m_backingstore && hwnd->m_oswindow)
-  {
+  if (!!hwnd) {
+    if (!hwnd->m_backingstore) hwnd->m_backingstore = new LICE_MemBitmap;
+    GtkAllocation allocation;
+    gtk_widget_get_allocation (widget,&allocation);
+    bool forceref = hwnd->m_backingstore->resize(allocation.width-allocation.x,allocation.height-allocation.y);
     LICE_SubBitmap tmpbm(hwnd->m_backingstore,allocation.x,allocation.y,allocation.width-allocation.x,allocation.height-allocation.y);
-    void SWELL_internalLICEpaint(HWND hwnd, LICE_IBitmap *bmout, int bmout_xpos, int bmout_ypos, bool forceref);
-    SWELL_internalLICEpaint(hwnd, &tmpbm,allocation.x,allocation.y,forceref);
-	/*printf("Type: ");
-	printf(typeid(tmpbm.getBits()).name());
-	printf("\n");*/
-    cairo_surface_t *surface=cairo_image_surface_create_for_data((guchar*)tmpbm.getBits(),CAIRO_FORMAT_RGB24,tmpbm.getWidth(),tmpbm.getHeight(),tmpbm.getRowSpan()*4);
-    cairo_set_source_surface(cr,surface,allocation.x,allocation.y);
-    cairo_paint(cr);
-	cairo_surface_destroy(surface);
+    if (hwnd->m_backingstore && hwnd->m_oswindow)
+    { 
+      void SWELL_internalLICEpaint(HWND hwnd, LICE_IBitmap *bmout, int bmout_xpos, int bmout_ypos, bool forceref);
+      SWELL_internalLICEpaint(hwnd, &tmpbm,allocation.x,allocation.y,forceref);
+	  /*printf("Type: ");
+	  printf(typeid(tmpbm.getBits()).name());
+	  printf("\n");*/
+      cairo_surface_t *surface=cairo_image_surface_create_for_data((guchar*)tmpbm.getBits(),CAIRO_FORMAT_RGB24,tmpbm.getWidth(),tmpbm.getHeight(),tmpbm.getRowSpan()*4);
+      #ifdef GTK2
+      cairo_t *cr = gdk_cairo_create(gtk_widget_get_window(GTK_WIDGET(hwnd->m_oswindow)));
+      #endif
+      cairo_set_source_surface(cr,surface,allocation.x,allocation.y);
+      cairo_paint(cr);
+	    cairo_surface_destroy(surface);
+	    #ifdef GTK2
+	    cairo_destroy(cr);
+	    #endif
+    }
   }
   return FALSE;
 }
@@ -152,7 +169,7 @@ void swell_onRealize(GdkWindow *window, gpointer data)
 
 static void swell_manageOSwindow(HWND hwnd, bool wantfocus)
 {
-	printf("swell_manageOSwindow()\n");
+	//printf("swell_manageOSwindow()\n");
   if (!hwnd) return;
 
   bool isVis = !!hwnd->m_oswindow;
@@ -176,6 +193,9 @@ static void swell_manageOSwindow(HWND hwnd, bool wantfocus)
         hwnd->m_oswindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
         if (hwnd->m_oswindow) 
         {
+          if (!hwnd->m_container)
+            hwnd->m_container = gtk_fixed_new();
+          gtk_container_add(GTK_CONTAINER(hwnd->m_oswindow), GTK_WIDGET(hwnd->m_container));
           
           gtk_window_move(GTK_WINDOW(hwnd->m_oswindow), r.left, r.top);
           gtk_window_resize(GTK_WINDOW(hwnd->m_oswindow), r.right-r.left, r.bottom-r.top);
@@ -187,11 +207,17 @@ static void swell_manageOSwindow(HWND hwnd, bool wantfocus)
           	gtk_window_set_decorated(GTK_WINDOW(hwnd->m_oswindow), false);
             //gdk_window_set_override_redirect(hwnd->m_oswindow,true);
           }
-          else if (/*hwnd == DialogBoxIsActive() || */ !(hwnd->m_style&WS_THICKFRAME))
+          else if (/*hwnd == DialogBoxIsActive() || */ !(hwnd->m_style&WS_THICKFRAME)) {
             gtk_window_set_type_hint(GTK_WINDOW(hwnd->m_oswindow),GDK_WINDOW_TYPE_HINT_DIALOG); // this is a better default behavior
+            gtk_window_set_resizable(GTK_WINDOW(hwnd->m_oswindow), false);
+          }
           gtk_widget_set_app_paintable (hwnd->m_oswindow, TRUE);
           gtk_container_set_resize_mode (GTK_CONTAINER(hwnd->m_oswindow), GTK_RESIZE_QUEUE);
+#ifdef GTK2
+          g_signal_connect(G_OBJECT(hwnd->m_oswindow), "expose-event", G_CALLBACK(swell_onDraw), hwnd);
+#else
           g_signal_connect(G_OBJECT(hwnd->m_oswindow), "draw", G_CALLBACK(swell_onDraw), hwnd);
+#endif
           g_signal_connect(G_OBJECT(hwnd->m_oswindow), "event", G_CALLBACK(swell_onEvent), hwnd);
           //g_signal_connect_after(G_OBJECT(hwnd->m_oswindow), "map", G_CALLBACK(swell_onRealize), NULL);
           gtk_widget_show_all(hwnd->m_oswindow);
@@ -203,16 +229,16 @@ static void swell_manageOSwindow(HWND hwnd, bool wantfocus)
   }
   if (wantVis) swell_setOSwindowtext(hwnd);
 
-  if (wantVis && isVis && wantfocus && hwnd && hwnd->m_oswindow) gtk_window_present(GTK_WINDOW(hwnd->m_oswindow));
+  if (wantVis && isVis && wantfocus && hwnd && hwnd->m_oswindow && GTK_IS_WINDOW(hwnd->m_oswindow)) gtk_window_present(GTK_WINDOW(hwnd->m_oswindow));
 }
 
 
 
 void swell_OSupdateWindowToScreen(HWND hwnd, RECT *rect)
 {
-	printf("swell_OSupdateWindowToScreen()\n");
+	//printf("swell_OSupdateWindowToScreen()\n");
 #ifdef SWELL_LICE_GDI
-  if (hwnd && hwnd->m_backingstore && hwnd->m_oswindow)
+  /*if (hwnd && hwnd->m_backingstore && hwnd->m_oswindow)
   {
     LICE_SubBitmap tmpbm(hwnd->m_backingstore,rect->left,rect->top,rect->right-rect->left,rect->bottom-rect->top);
     cairo_surface_t *surface=cairo_image_surface_create_for_data((guchar*)tmpbm.getBits(),CAIRO_FORMAT_RGB24,tmpbm.getWidth(),tmpbm.getHeight(),tmpbm.getRowSpan()*4);
@@ -224,13 +250,13 @@ void swell_OSupdateWindowToScreen(HWND hwnd, RECT *rect)
     }
     cairo_surface_destroy(surface);
     //gdk_window_flush(wnd);
-  }
+  }*/
 #endif
 }
 
 static int swell_gdkConvertKey(int key)
 {
-	printf("swell_gdkConvertKey()\n");
+	//printf("swell_gdkConvertKey()\n");
   //gdk key to VK_ conversion
   switch(key)
   {
@@ -251,7 +277,7 @@ static int swell_gdkConvertKey(int key)
 
 static LRESULT SendMouseMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	printf("SendMouseMessage()\n");
+	//printf("SendMouseMessage()\n");
   if (!hwnd || !hwnd->m_wndproc) return -1;
   if (!IsWindowEnabled(hwnd)) 
   {
@@ -303,7 +329,7 @@ static LRESULT SendMouseMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
 static void swell_gdkEventHandler(GdkEvent *evt, gpointer data)
 {
-	printf("swell_gdkEventHandler()\n");
+	//printf("swell_gdkEventHandler()\n");
 	HWND hwnd = (HWND) data;
     {
       if (hwnd) // validate window (todo later have a window class that we check)
@@ -340,7 +366,7 @@ static void swell_gdkEventHandler(GdkEvent *evt, gpointer data)
           }
         break;
         case GDK_WINDOW_STATE: /// GdkEventWindowState for min/max
-          printf("minmax\n");
+          //printf("minmax\n");
         break;
         case GDK_GRAB_BROKEN:
           {
@@ -430,7 +456,7 @@ static void swell_gdkEventHandler(GdkEvent *evt, gpointer data)
 
 void swell_runOSevents()
 {
-	printf("swell_gdkEventHandler()\n");
+	//printf("swell_gdkEventHandler()\n");
   if (SWELL_gdk_active>0) 
   {
     while (gtk_events_pending())
@@ -479,8 +505,7 @@ HWND__::HWND__(HWND par, int wID, RECT *wndr, const char *label, bool visible, W
      m_menu=NULL;
 #ifdef SWELL_TARGET_GDK
      m_oswindow = 0;
-#elif SWELL_TARGET_QT
-     m_oswindow = NULL;
+     m_container = 0;
 #endif
 
 #ifdef SWELL_LICE_GDI
@@ -503,13 +528,13 @@ HWND__::~HWND__()
 
 HWND GetParent(HWND hwnd)
 {  
-	printf("GetParent()\n");
+	//printf("GetParent()\n");
   return hwnd ? hwnd->m_parent : NULL;
 }
 
 HWND GetDlgItem(HWND hwnd, int idx)
 {
-	printf("GetDlgItem()\n");
+	//printf("GetDlgItem()\n");
   if (!idx) return hwnd;
   if (hwnd) hwnd=hwnd->m_children;
   while (hwnd && hwnd->m_id != idx) hwnd=hwnd->m_next;
@@ -519,7 +544,7 @@ HWND GetDlgItem(HWND hwnd, int idx)
 
 LONG_PTR SetWindowLong(HWND hwnd, int idx, LONG_PTR val)
 {
-	printf("WindowLong()\n");
+	//printf("WindowLong()\n");
   if (!hwnd) return 0;
   if (idx==GWL_STYLE)
   {
@@ -571,7 +596,7 @@ LONG_PTR SetWindowLong(HWND hwnd, int idx, LONG_PTR val)
 
 LONG_PTR GetWindowLong(HWND hwnd, int idx)
 {
-	printf("GetWindowLong()\n");
+	//printf("GetWindowLong()\n");
   if (!hwnd) return 0;
   if (idx==GWL_STYLE)
   {
@@ -610,14 +635,14 @@ LONG_PTR GetWindowLong(HWND hwnd, int idx)
 
 bool IsWindow(HWND hwnd)
 {
-	printf("IsWindow()\n");
+	//printf("IsWindow()\n");
   // todo: verify window is valid (somehow)
   return !!hwnd;
 }
 
 bool IsWindowVisible(HWND hwnd)
 {
-	printf("IsWindowVisible()\n");
+	//printf("IsWindowVisible()\n");
   if (!hwnd) return false;
   while (hwnd->m_visible)
   {
@@ -629,7 +654,7 @@ bool IsWindowVisible(HWND hwnd)
 
 LRESULT SendMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	printf("SendMessage()\n");
+	//printf("SendMessage()\n");
   if (!hwnd) return 0;
   WNDPROC wp = hwnd->m_wndproc;
 
@@ -670,7 +695,7 @@ LRESULT SendMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 static void swell_removeWindowFromNonChildren(HWND__ *hwnd)
 {
-	printf("swell_removeWindowFromNonChildren()\n");
+	//printf("swell_removeWindowFromNonChildren()\n");
   if (hwnd->m_next) hwnd->m_next->m_prev = hwnd->m_prev;
   if (hwnd->m_prev) hwnd->m_prev->m_next = hwnd->m_next;
   else
@@ -683,7 +708,7 @@ static void swell_removeWindowFromNonChildren(HWND__ *hwnd)
 
 static void RecurseDestroyWindow(HWND hwnd)
 {
-	printf("RecurseDestroyWindow()\n");
+	//printf("RecurseDestroyWindow()\n");
   HWND tmp=hwnd->m_children;
   while (tmp)
   {
@@ -722,7 +747,7 @@ static void RecurseDestroyWindow(HWND hwnd)
 
 void DestroyWindow(HWND hwnd)
 {
-	printf("DestroyWindow()\n");
+	//printf("DestroyWindow()\n");
   if (!hwnd) return;
   if (hwnd->m_hashaddestroy) return; 
  
@@ -739,7 +764,7 @@ void DestroyWindow(HWND hwnd)
 
 bool IsWindowEnabled(HWND hwnd)
 {
-	printf("IsWindowEnabled()\n");
+	//printf("IsWindowEnabled()\n");
   if (!hwnd) return false;
   while (hwnd && hwnd->m_enabled) 
   {
@@ -750,11 +775,14 @@ bool IsWindowEnabled(HWND hwnd)
 
 void EnableWindow(HWND hwnd, int enable)
 {
-	printf("EnableWindow()\n");
+	//printf("EnableWindow()\n");
   if (!hwnd) return;
   hwnd->m_enabled=!!enable;
 #ifdef SWELL_TARGET_GDK
-  if (hwnd->m_oswindow) gtk_window_set_accept_focus(GTK_WINDOW(hwnd->m_oswindow),!!enable);
+  if (hwnd->m_oswindow) {
+    gtk_widget_set_sensitive(GTK_WIDGET(hwnd->m_oswindow), !!enable);
+    //gtk_window_set_accept_focus(GTK_WINDOW(hwnd->m_oswindow),!!enable);
+  }
 #endif
 
   if (!enable && SWELL_g_focuswnd == hwnd) SWELL_g_focuswnd = 0;
@@ -763,16 +791,19 @@ void EnableWindow(HWND hwnd, int enable)
 
 void SetFocus(HWND hwnd)
 {
-	printf("SetFocus()\n");
+	//printf("SetFocus()\n");
   if (!hwnd) return;
 
   SWELL_g_focuswnd = hwnd;
 #ifdef SWELL_TARGET_GDK
-  while (hwnd && !hwnd->m_oswindow) hwnd=hwnd->m_parent;
+  //while (hwnd && !hwnd->m_oswindow) hwnd=hwnd->m_parent;
   if (hwnd) gtk_window_present(GTK_WINDOW(hwnd->m_oswindow));
   if (hwnd && hwnd->m_oswindow != SWELL_g_focus_oswindow)
   {
-    gtk_window_activate_focus(GTK_WINDOW(hwnd->m_oswindow));
+    if GTK_IS_WINDOW(hwnd->m_oswindow)
+      gtk_window_activate_focus(GTK_WINDOW(hwnd->m_oswindow));
+    else if GTK_IS_WIDGET(hwnd->m_oswindow)
+      gtk_widget_grab_focus(GTK_WIDGET(hwnd->m_oswindow));
     SWELL_g_focus_oswindow = hwnd->m_oswindow;
   }
 
@@ -780,14 +811,14 @@ void SetFocus(HWND hwnd)
 }
 void SetForegroundWindow(HWND hwnd)
 {
-	printf("SetForegroundWindow()\n");
+	//printf("SetForegroundWindow()\n");
   SetFocus(hwnd); 
 }
 
 
 int IsChild(HWND hwndParent, HWND hwndChild)
 {
-	printf("IsChild()\n");
+	//printf("IsChild()\n");
   if (!hwndParent || !hwndChild || hwndParent == hwndChild) return 0;
 
   while (hwndChild && hwndChild != hwndParent) hwndChild = hwndChild->m_parent;
@@ -798,7 +829,7 @@ int IsChild(HWND hwndParent, HWND hwndChild)
 
 HWND GetForegroundWindow()
 {
-	printf("GetForegroundWindow()\n");
+	//printf("GetForegroundWindow()\n");
 #ifdef SWELL_TARGET_GDK
   if (!SWELL_g_focus_oswindow) return 0;
   HWND a = SWELL_topwindows;
@@ -942,7 +973,8 @@ bool GetWindowRect(HWND hwnd, RECT *r)
   {
     GdkRectangle rc;
     GdkWindow *wnd = gtk_widget_get_window(GTK_WIDGET(hwnd->m_oswindow));
-    gdk_window_get_frame_extents(wnd,&rc);
+    if (!!wnd)
+      gdk_window_get_frame_extents(wnd,&rc);
     r->left=rc.x;
     r->top=rc.y;
     r->right=rc.x+rc.width;
@@ -968,9 +1000,9 @@ void GetWindowContentViewRect(HWND hwnd, RECT *r)
 #ifdef GTK2
     gdk_window_get_geometry(wnd,NULL,NULL,&w,&h,NULL);
 #else
-	gdk_window_get_geometry(wnd,NULL,NULL,&w,&h);
+	  gdk_window_get_geometry(wnd,NULL,NULL,&w,&h);
 #endif
-	gdk_window_get_origin(wnd,&px,&py);
+	  gdk_window_get_origin(wnd,&px,&py);
     r->left=px;
     r->top=py;
     r->right = px+w;
@@ -994,7 +1026,7 @@ void GetClientRect(HWND hwnd, RECT *r)
 #ifdef GTK2
     gdk_window_get_geometry(wnd,&px,&py,&w,&h,NULL);
 #else
-	gdk_window_get_geometry(wnd,&px,&py,&w,&h);
+	  gdk_window_get_geometry(wnd,&px,&py,&w,&h);
 #endif
     r->right = w;
     r->bottom = h;
@@ -1085,8 +1117,18 @@ void SetWindowPos(HWND hwnd, HWND zorder, int x, int y, int cx, int cy, int flag
     {
       //printf("repos %d,%d,%d,%d, %d\n",f.left,f.top,f.right,f.bottom,reposflag);
       /*if ((reposflag&3)==3) gdk_window_move_resize(GTK_WINDOW(hwnd->m_oswindow),f.left,f.top,f.right-f.left,f.bottom-f.top);
-      else */if (reposflag&2) gtk_window_resize(GTK_WINDOW(hwnd->m_oswindow),f.right-f.left,f.bottom-f.top);
-      else if (reposflag&1) gtk_window_move(GTK_WINDOW(hwnd->m_oswindow),f.left,f.top);
+      else */
+      if GTK_IS_WINDOW(hwnd->m_oswindow) {
+        if (reposflag&2) gtk_window_resize(GTK_WINDOW(hwnd->m_oswindow),f.right-f.left,f.bottom-f.top);
+        else if (reposflag&1) gtk_window_move(GTK_WINDOW(hwnd->m_oswindow),f.left,f.top);
+      } /*else if GTK_IS_WIDGET(hwnd->m_oswindow) {
+        if (reposflag&2) {
+          gtk_widget_set_size_request(GTK_WIDGET(hwnd->m_oswindow), f.right - f.left, f.bottom - f.top);
+        }
+        else if (reposflag&1 && hwnd->m_parent && GTK_IS_FIXED(hwnd->m_parent->m_container)) {
+          gtk_fixed_move(GTK_FIXED(hwnd->m_parent->m_container), GTK_WIDGET(hwnd->m_oswindow), f.left, f.top);
+        }
+      }*/
     }
     else // top level windows above get their position from gdk and cache it in m_position
 #endif
@@ -1424,6 +1466,7 @@ void SWELL_MakeSetCurParms(float xscale, float yscale, float xtrans, float ytran
   m_transform.right=(int)(xscale*65536.0);
   m_transform.bottom=(int)(yscale*65536.0);
   m_make_owner=parent;
+  //printf("MakeSetCurParms\n");
 }
 
 static void UpdateAutoCoords(RECT r)
@@ -1564,147 +1607,91 @@ static LRESULT WINAPI virtwndWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPAR
   return DefWindowProc(hwnd,msg,wParam,lParam);
 }
 
-#ifdef SWELL_ENABLE_VIRTWND_CONTROLS
-static HWND swell_makeButton(HWND owner, int idx, RECT *tr, const char *label, bool vis, int style)
-{
-  WDL_VirtualIconButton *vwnd = new WDL_VirtualIconButton;
-  if (label) vwnd->SetTextLabel(label);
-  vwnd->SetForceBorder(true);
-  if (style & BS_AUTOCHECKBOX) vwnd->SetCheckState(0);
-  HWND hwnd = new HWND__(owner,idx,tr,label,vis,virtwndWindowProc);
-  hwnd->m_classname = "Button";
-  hwnd->m_style = style|WS_CHILD;
-  hwnd->m_wndproc(hwnd,WM_CREATE,0,(LPARAM)vwnd);
-  return hwnd;
-}
-
-#endif
-
-
-#ifndef SWELL_ENABLE_VIRTWND_CONTROLS
 static LRESULT WINAPI buttonWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
   switch (msg)
   {
     case WM_LBUTTONDOWN:
-      SetCapture(hwnd);
-      InvalidateRect(hwnd,NULL,FALSE);
-    return 0;
     case WM_MOUSEMOVE:
-    return 0;
     case WM_LBUTTONUP:
-      if (GetCapture()==hwnd)
-      {
-        ReleaseCapture(); // WM_CAPTURECHANGED will take care of the invalidate
-        RECT r;
-        GetClientRect(hwnd,&r);
-        POINT p={GET_X_LPARAM(lParam),GET_Y_LPARAM(lParam)};
-        if (PtInRect(&r,p) && hwnd->m_id && hwnd->m_parent) 
-        {
-          if ((hwnd->m_style & 0xf) == BS_AUTO3STATE)
-          {
-            int a = hwnd->m_private_data&3;
-            if (a==0) a=1;
-            else if (a==1) a=2;
-            else a=0;
-            hwnd->m_private_data = (a) | (hwnd->m_private_data&~3);
-          }    
-          else if ((hwnd->m_style & 0xf) == BS_AUTOCHECKBOX)
-          {
-            hwnd->m_private_data = (!(hwnd->m_private_data&3)) | (hwnd->m_private_data&~3);
-          }
-          else if ((hwnd->m_style & 0xf) == BS_AUTORADIOBUTTON)
-          {
-            // todo: uncheck other nearby radios 
-          }
-          SendMessage(hwnd->m_parent,WM_COMMAND,MAKEWPARAM(hwnd->m_id,BN_CLICKED),(LPARAM)hwnd);
-        }
-      }
-    return 0;
     case WM_CAPTURECHANGED:
-      InvalidateRect(hwnd,NULL,FALSE);
-    return 0;
     case WM_PAINT:
-      { 
-        PAINTSTRUCT ps;
-        if (BeginPaint(hwnd,&ps))
-        {
-          RECT r; 
-          GetClientRect(hwnd,&r); 
-          bool pressed = GetCapture()==hwnd;
-
-          SetTextColor(ps.hdc,GetSysColor(COLOR_BTNTEXT));
-          SetBkMode(ps.hdc,TRANSPARENT);
-
-
-          HPEN pen = CreatePen(PS_SOLID,0,GetSysColor(COLOR_3DSHADOW));
-          HGDIOBJ oldpen = SelectObject(ps.hdc,pen);
-          HPEN br = CreateSolidBrush(pressed ? RGB(255,128,128) : RGB(128,192,64));
-          HGDIOBJ oldbr = SelectObject(ps.hdc,br);
-
-          Rectangle(ps.hdc,r.left,r.top,r.right-1,r.bottom-1);
-
-
-          SelectObject(ps.hdc,oldbr);
-          SelectObject(ps.hdc,oldpen);
-          DeleteObject(pen);
-          DeleteObject(br);
-
-
-          if ((hwnd->m_style & 0xf) == BS_AUTOCHECKBOX || (hwnd->m_style & 0xf) == BS_AUTO3STATE)
-          {
-            int st = (int)(hwnd->m_private_data&3);
-            if (st==3||(st==2 && (hwnd->m_style & 0xf) == BS_AUTOCHECKBOX)) st=1;
-            if (st==1) DrawText(ps.hdc,"[X]",-1,&r,DT_VCENTER);
-            else if (st==2) DrawText(ps.hdc,"[-]",-1,&r,DT_VCENTER);
-            else DrawText(ps.hdc,"[ ]",-1,&r,DT_VCENTER);
-            r.left += 20;
-          }
-          else if ((hwnd->m_style & 0xf) == BS_AUTORADIOBUTTON)
-          {
-            r.left += r.bottom-r.top;
-          }
-
-
-
-          char buf[512];
-          buf[0]=0;
-          GetWindowText(hwnd,buf,sizeof(buf));
-          if (buf[0]) DrawText(ps.hdc,buf,-1,&r,((hwnd->m_style & SS_CENTER) ? DT_CENTER:0)|DT_VCENTER);
-
-
-          EndPaint(hwnd,&ps);
-        }
-      }
     return 0;
     case BM_GETCHECK:
-      if (hwnd)
+      if (hwnd && hwnd->m_oswindow)
       {
-        return (hwnd->m_private_data&3)==2 ? 1 : (hwnd->m_private_data&3); 
+        if (gtk_toggle_button_get_inconsistent(GTK_TOGGLE_BUTTON(hwnd->m_oswindow)))
+          return 2;
+        else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(hwnd->m_oswindow)))
+          return 1;
+        else return 0;
       }
     return 0;
     case BM_SETCHECK:
-      if (hwnd)
+      if (hwnd && hwnd->m_oswindow)
       {
         int check = (int)wParam;
-        INT_PTR op = hwnd->m_private_data;
-        hwnd->m_private_data=(check > 2 || check<0 ? 1 : (check&3)) | (hwnd->m_private_data&~3);
-        if (hwnd->m_private_data != op) InvalidateRect(hwnd,NULL,FALSE);
+        if (check == 2) {
+          gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hwnd->m_oswindow), TRUE);
+          gtk_toggle_button_set_inconsistent(GTK_TOGGLE_BUTTON(hwnd->m_oswindow), TRUE);
+        } else if (check == 1) {
+          gtk_toggle_button_set_inconsistent(GTK_TOGGLE_BUTTON(hwnd->m_oswindow), FALSE);
+          gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hwnd->m_oswindow), TRUE);
+        } else {
+          gtk_toggle_button_set_inconsistent(GTK_TOGGLE_BUTTON(hwnd->m_oswindow), FALSE);
+          gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hwnd->m_oswindow), FALSE);
+        }
       }
     return 0;
   }
   return DefWindowProc(hwnd,msg,wParam,lParam);
 }
 
+static void buttonPressed(GtkWidget *widget, gpointer data)
+{
+  printf("pressed\n");
+  SetCapture((HWND) data);
+}
+
+static void buttonReleased(GtkWidget *widget, gpointer data)
+{  
+  printf("released\n");
+  HWND hwnd = (HWND) data;
+  if (!!hwnd && GetCapture()==hwnd)
+  {
+    ReleaseCapture(); // WM_CAPTURECHANGED will take care of the invalidate
+    SendMessage(hwnd->m_parent,WM_COMMAND,MAKEWPARAM(hwnd->m_id,BN_CLICKED),(LPARAM)hwnd);
+  }
+}
+
 static HWND swell_makeButton(HWND owner, int idx, RECT *tr, const char *label, bool vis, int style)
 {
+  GtkWidget *btn;
+  if (style & BS_AUTOCHECKBOX)
+    btn = gtk_check_button_new_with_mnemonic(label);
+  else
+    btn = gtk_button_new_with_mnemonic(label);
+  
+  if (!!owner) {
+    if (!owner->m_container)
+      owner->m_container = gtk_fixed_new();
+    gtk_fixed_put(GTK_FIXED(owner->m_container), GTK_WIDGET(btn), tr->left, tr->top);
+    //printf("makebutton: gtk_fixed_put\n");
+  }
+  	
+  gtk_widget_set_size_request(GTK_WIDGET(btn), tr->right - tr->left, tr->bottom - tr->top);
+  gtk_widget_show(GTK_WIDGET(btn));
+  
+
   HWND hwnd = new HWND__(owner,idx,tr,label,vis,buttonWindowProc);
   hwnd->m_classname = "Button";
   hwnd->m_style = style|WS_CHILD;
   hwnd->m_wndproc(hwnd,WM_CREATE,0,0);
+  hwnd->m_oswindow = btn;
+  g_signal_connect (btn, "pressed", G_CALLBACK(buttonPressed), hwnd);
+  g_signal_connect (btn, "released", G_CALLBACK(buttonReleased), hwnd);
   return hwnd;
 }
-#endif
 
 
 static LRESULT WINAPI labelWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -1757,21 +1744,44 @@ HWND SWELL_MakeButton(int def, const char *label, int idx, int x, int y, int w, 
 
 HWND SWELL_MakeLabel( int align, const char *label, int idx, int x, int y, int w, int h, int flags)
 {
+  GtkWidget *lbl = gtk_label_new(label);
+  if (!!m_make_owner) {
+    if (!m_make_owner->m_container)
+      m_make_owner->m_container = gtk_fixed_new();
+    gtk_fixed_put(GTK_FIXED(m_make_owner->m_container), GTK_WIDGET(lbl), x, y);
+  }
+  	
+  //gtk_widget_set_size_request(GTK_WIDGET(lbl), w, h);
+  gtk_widget_show(GTK_WIDGET(lbl));
+  
   RECT tr=MakeCoords(x,y,w,h,true);
-  HWND hwnd = new HWND__(m_make_owner,idx,&tr,label, !(flags&SWELL_NOT_WS_VISIBLE),labelWindowProc);
+  HWND hwnd = new HWND__(m_make_owner,idx,&tr,label, !(flags&SWELL_NOT_WS_VISIBLE),DefWindowProc);
   hwnd->m_classname = "static";
   hwnd->m_style = (flags & ~SWELL_NOT_WS_VISIBLE)|WS_CHILD;
   hwnd->m_wndproc(hwnd,WM_CREATE,0,0);
+  hwnd->m_oswindow = lbl;
+  gtk_label_set_justify (GTK_LABEL(lbl), (align<0 ? GTK_JUSTIFY_LEFT : align>0 ? GTK_JUSTIFY_RIGHT : GTK_JUSTIFY_CENTER));
   if (m_doautoright) UpdateAutoCoords(tr);
   return hwnd;
 }
+
 HWND SWELL_MakeEditField(int idx, int x, int y, int w, int h, int flags)
-{  
+{ 
+  GtkWidget *edit = gtk_entry_new();
+  if (!!m_make_owner) {
+    if (!m_make_owner->m_container)
+      m_make_owner->m_container = gtk_fixed_new();
+    gtk_fixed_put(GTK_FIXED(m_make_owner->m_container), GTK_WIDGET(edit), x, y);
+  }
+  gtk_widget_set_size_request(GTK_WIDGET(edit), w, h);
+  gtk_widget_show(GTK_WIDGET(edit));
+  
   RECT tr=MakeCoords(x,y,w,h,true);
-  HWND hwnd = new HWND__(m_make_owner,idx,&tr,NULL, !(flags&SWELL_NOT_WS_VISIBLE),labelWindowProc);
+  HWND hwnd = new HWND__(m_make_owner,idx,&tr,NULL, !(flags&SWELL_NOT_WS_VISIBLE),DefWindowProc);
   hwnd->m_style |= WS_CHILD;
   hwnd->m_classname = "Edit";
   hwnd->m_wndproc(hwnd,WM_CREATE,0,0);
+  hwnd->m_oswindow = edit;
   if (m_doautoright) UpdateAutoCoords(tr);
   return hwnd;
 }
@@ -1909,13 +1919,14 @@ HWND SWELL_MakeControl(const char *cname, int idx, const char *classname, int st
   }
   else if (!stricmp(classname, "static"))
   {
-    RECT tr=MakeCoords(x,y,w,h,false);
+    return SWELL_MakeLabel(0, cname, idx, x, y, w, h, !(style&SWELL_NOT_WS_VISIBLE));
+    /*RECT tr=MakeCoords(x,y,w,h,false);
     HWND hwnd = new HWND__(m_make_owner,idx,&tr,cname, !(style&SWELL_NOT_WS_VISIBLE),labelWindowProc);
     hwnd->m_style |= WS_CHILD;
     hwnd->m_classname = "static";
     hwnd->m_wndproc(hwnd,WM_CREATE,0,0);
     if (m_doautoright) UpdateAutoCoords(tr);
-    return hwnd;
+    return hwnd;*/
   }
   else if (!stricmp(classname,"Button"))
   {
@@ -2235,7 +2246,7 @@ HWND ChildWindowFromPoint(HWND h, POINT p)
 
 HWND WindowFromPoint(POINT p)
 {
-  printf("WindowFromPoint()\n");
+  //printf("WindowFromPoint()\n");
   HWND h = SWELL_topwindows;
   while (h)
   {
@@ -2254,7 +2265,7 @@ HWND WindowFromPoint(POINT p)
 
 void UpdateWindow(HWND hwnd)
 {
-  printf("UpdateWindow()\n");
+  //printf("UpdateWindow()\n");
   if (hwnd)
   {
 #ifdef SWELL_TARGET_GDK
@@ -2262,12 +2273,12 @@ void UpdateWindow(HWND hwnd)
     if (hwnd && hwnd->m_oswindow) gtk_widget_queue_draw(GTK_WIDGET(hwnd->m_oswindow));
 #endif
   }
-	printf("After UpdateWindow()\n");
+	//printf("After UpdateWindow()\n");
 }
 
 void InvalidateRect(HWND hwnd, RECT *r, int eraseBk)
 { 
-  printf("InvalidateRect()\n");
+  //printf("InvalidateRect()\n");
   if (!hwnd) return;
   HWND hwndCall=hwnd;
 #ifdef SWELL_LICE_GDI
@@ -2278,7 +2289,7 @@ void InvalidateRect(HWND hwnd, RECT *r, int eraseBk)
   }
 #endif
 #ifdef SWELL_TARGET_GDK
-  GdkRectangle rect;
+  /*GdkRectangle rect;
   if (r) { rect.x = r->left; rect.y = r->top; rect.width = r->right-r->left; rect.height = r->bottom - r->top; }
   else
   {
@@ -2302,20 +2313,20 @@ void InvalidateRect(HWND hwnd, RECT *r, int eraseBk)
     rect.y += tr.top;
     GdkWindow *wnd = gtk_widget_get_window(hwnd->m_oswindow);
     gdk_window_invalidate_rect(wnd,hwnd!=hwndCall || r ? &rect : NULL,true);
-  }
+  }*/
 #endif
 }
 
 
 HWND GetCapture()
 {
-	printf("GetCapture()\n");
+	//printf("GetCapture()\n");
   return s_captured_window;
 }
 
 HWND SetCapture(HWND hwnd)
 {
-	printf("SetCapture()\n");
+	//printf("SetCapture()\n");
   HWND oc = s_captured_window;
   if (oc != hwnd)
   {
@@ -2333,7 +2344,7 @@ HWND SetCapture(HWND hwnd)
 
 void ReleaseCapture()
 {
-	printf("ReleaseCapture()\n");
+	//printf("ReleaseCapture()\n");
   if (s_captured_window) 
   {
     SendMessage(s_captured_window,WM_CAPTURECHANGED,0,0);
@@ -2346,7 +2357,7 @@ void ReleaseCapture()
 
 LRESULT SwellDialogDefaultWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	printf("SwellDialogDefaultWindowProc()\n");
+	//printf("SwellDialogDefaultWindowProc()\n");
   DLGPROC d=(DLGPROC)GetWindowLong(hwnd,DWL_DLGPROC);
   if (d) 
   {
@@ -2385,13 +2396,13 @@ LRESULT SwellDialogDefaultWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM
 
 BOOL EndPaint(HWND hwnd, PAINTSTRUCT *ps)
 {
-	printf("EndPaint()\n");
+	//printf("EndPaint()\n");
   return TRUE;
 }
 
 LRESULT DefWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	printf("DefWindowProc()\n");
+	//printf("DefWindowProc()\n");
   const int menubar_size=12; // big for testing
   const int menubar_xspacing=5;
   switch (msg)
@@ -2533,7 +2544,7 @@ LRESULT DefWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 BOOL DragQueryPoint(HDROP hDrop,LPPOINT pt)
 {
-	printf("DragQueryPoint()\n");
+	//printf("DragQueryPoint()\n");
   if (!hDrop) return 0;
   DROPFILES *df=(DROPFILES*)GlobalLock(hDrop);
   BOOL rv=!df->fNC;
@@ -2544,13 +2555,13 @@ BOOL DragQueryPoint(HDROP hDrop,LPPOINT pt)
 
 void DragFinish(HDROP hDrop)
 {
-	printf("DragFinish()\n");
+	//printf("DragFinish()\n");
 //do nothing for now (caller will free hdrops)
 }
 
 UINT DragQueryFile(HDROP hDrop, UINT wf, char *buf, UINT bufsz)
 {
-	printf("DragQueryFile()\n");
+	//printf("DragQueryFile()\n");
   if (!hDrop) return 0;
   DROPFILES *df=(DROPFILES*)GlobalLock(hDrop);
 
@@ -2593,14 +2604,14 @@ static WDL_PtrList<void> m_clip_recs;
 static WDL_PtrList<char> m_clip_curfmts;
 bool OpenClipboard(HWND hwndDlg)
 {
-	printf("OpenClipboard()\n");
+	//printf("OpenClipboard()\n");
   m_clip_curfmts.Empty();
   return true;
 }
 
 void CloseClipboard() // frees any remaining items in clipboard
 {
-	printf("CloseClipboard()\n");
+	//printf("CloseClipboard()\n");
   m_clip_recs.Empty(true,GlobalFree);
 }
 
@@ -2625,7 +2636,7 @@ void SetClipboardData(UINT type, HANDLE h)
 
 UINT RegisterClipboardFormat(const char *desc)
 {
-	printf("RegisterClipboardFormat()\n");
+	//printf("RegisterClipboardFormat()\n");
   return 0;
 }
 
@@ -2633,13 +2644,13 @@ UINT RegisterClipboardFormat(const char *desc)
 
 HIMAGELIST ImageList_CreateEx()
 {
-	printf("ImageList_CreateEx()\n");
+	//printf("ImageList_CreateEx()\n");
   return (HIMAGELIST)new WDL_PtrList<HGDIOBJ__>;
 }
 
 void ImageList_Destroy(HIMAGELIST list)
 {
-	printf("ImageList_Destroy()\n");
+	//printf("ImageList_Destroy()\n");
   if (!list) return;
   WDL_PtrList<HGDIOBJ__> *p=(WDL_PtrList<HGDIOBJ__>*)list;
   // dont delete images, since the caller is responsible!
@@ -2648,7 +2659,7 @@ void ImageList_Destroy(HIMAGELIST list)
 
 int ImageList_ReplaceIcon(HIMAGELIST list, int offset, HICON image)
 {
-	printf("ImageList_ReplaceIcon()\n");
+	//printf("ImageList_ReplaceIcon()\n");
   if (!image || !list) return -1;
   WDL_PtrList<HGDIOBJ__> *l=(WDL_PtrList<HGDIOBJ__> *)list;
   if (offset<0||offset>=l->GetSize()) 
@@ -2670,13 +2681,13 @@ int ImageList_ReplaceIcon(HIMAGELIST list, int offset, HICON image)
 
 BOOL PostMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	printf("PostMessage()\n");
+	//printf("PostMessage()\n");
   return SWELL_Internal_PostMessage(hwnd,message,wParam,lParam);
 }
 
 void SWELL_MessageQueue_Clear(HWND h)
 {
-	printf("SWELL_MessageQueue_Clear()\n");
+	//printf("SWELL_MessageQueue_Clear()\n");
   SWELL_Internal_PMQ_ClearAllMessages(h);
 }
 
@@ -2706,7 +2717,7 @@ static int m_pmq_size;
 
 void SWELL_Internal_PostMessage_Init()
 {
-	printf("SWELL_Internal_PostMessage_Init()\n");
+	//printf("SWELL_Internal_PostMessage_Init()\n");
   if (m_pmq_mutex) return;
   
   m_pmq_mainthread=pthread_self();
@@ -2715,7 +2726,7 @@ void SWELL_Internal_PostMessage_Init()
 
 void SWELL_MessageQueue_Flush()
 {
-	printf("SWELL_MessageQueue_Flush()\n");
+	//printf("SWELL_MessageQueue_Flush()\n");
   if (!m_pmq_mutex) return;
   
   m_pmq_mutex->Enter();
@@ -2746,7 +2757,7 @@ void SWELL_MessageQueue_Flush()
 
 void SWELL_Internal_PMQ_ClearAllMessages(HWND hwnd)
 {
-	printf("SWELL_Internal_PMQ_ClearAllMessages()\n");
+	//printf("SWELL_Internal_PMQ_ClearAllMessages()\n");
   if (!m_pmq_mutex) return;
   
   m_pmq_mutex->Enter();
@@ -2775,7 +2786,7 @@ void SWELL_Internal_PMQ_ClearAllMessages(HWND hwnd)
 
 BOOL SWELL_Internal_PostMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	printf("SWELL_Internal_PostMessage()\n");
+	//printf("SWELL_Internal_PostMessage()\n");
   if (!hwnd||!m_pmq_mutex) return FALSE;
 
   BOOL ret=FALSE;
@@ -2814,7 +2825,7 @@ BOOL SWELL_Internal_PostMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
 int EnumPropsEx(HWND hwnd, PROPENUMPROCEX proc, LPARAM lParam)
 {
-	printf("EnumPropsEx()\n");
+	//printf("EnumPropsEx()\n");
   if (!hwnd) return -1;
   int x;
   for (x =0 ; x < hwnd->m_props.GetSize(); x ++)
@@ -2828,14 +2839,14 @@ int EnumPropsEx(HWND hwnd, PROPENUMPROCEX proc, LPARAM lParam)
 
 HANDLE GetProp(HWND hwnd, const char *name)
 {
-	printf("GetProp()\n");
+	//printf("GetProp()\n");
   if (!hwnd) return NULL;
   return hwnd->m_props.Get(name);
 }
 
 BOOL SetProp(HWND hwnd, const char *name, HANDLE val)
 {
-	printf("SetProp()\n");
+	//printf("SetProp()\n");
   if (!hwnd) return false;
   hwnd->m_props.Insert(name,(void *)val);
   return TRUE;
@@ -2843,7 +2854,7 @@ BOOL SetProp(HWND hwnd, const char *name, HANDLE val)
 
 HANDLE RemoveProp(HWND hwnd, const char *name)
 {
-	printf("RemoveProp()\n");
+	//printf("RemoveProp()\n");
   HANDLE h =GetProp(hwnd,name);
   hwnd->m_props.Delete(name);
   return h;
@@ -2852,7 +2863,7 @@ HANDLE RemoveProp(HWND hwnd, const char *name)
 
 int GetSystemMetrics(int p)
 {
-	printf("GetSystemMetrics()\n");
+	//printf("GetSystemMetrics()\n");
   switch (p)
   {
     case SM_CXSCREEN:
@@ -2872,7 +2883,7 @@ int GetSystemMetrics(int p)
 
 BOOL ScrollWindow(HWND hwnd, int xamt, int yamt, const RECT *lpRect, const RECT *lpClipRect)
 {
-	printf("ScrollWindow()\n");
+	//printf("ScrollWindow()\n");
   if (!hwnd || (!xamt && !yamt)) return FALSE;
   
   // move child windows only
@@ -2891,7 +2902,7 @@ BOOL ScrollWindow(HWND hwnd, int xamt, int yamt, const RECT *lpRect, const RECT 
 
 HWND FindWindowEx(HWND par, HWND lastw, const char *classname, const char *title)
 {
-	printf("FindWindowEx()\n");
+	//printf("FindWindowEx()\n");
   if (!par&&!lastw) return NULL; // need to implement this modes
   HWND h=lastw?GetWindow(lastw,GW_HWNDNEXT):GetWindow(par,GW_CHILD);
   while (h)
@@ -2918,7 +2929,7 @@ HWND FindWindowEx(HWND par, HWND lastw, const char *classname, const char *title
 
 HTREEITEM TreeView_InsertItem(HWND hwnd, TV_INSERTSTRUCT *ins)
 {
-	printf("TreeView_InsertItem()\n");
+	//printf("TreeView_InsertItem()\n");
   if (!hwnd || !ins) return 0;
   
   return NULL;
@@ -2926,7 +2937,7 @@ HTREEITEM TreeView_InsertItem(HWND hwnd, TV_INSERTSTRUCT *ins)
 
 BOOL TreeView_Expand(HWND hwnd, HTREEITEM item, UINT flag)
 {
-	printf("TreeView_Expand()\n");
+	//printf("TreeView_Expand()\n");
   if (!hwnd || !item) return false;
   
   return TRUE;
@@ -2935,7 +2946,7 @@ BOOL TreeView_Expand(HWND hwnd, HTREEITEM item, UINT flag)
 
 HTREEITEM TreeView_GetSelection(HWND hwnd)
 { 
-	printf("TreeView_GetSelection()\n");
+	//printf("TreeView_GetSelection()\n");
   if (!hwnd) return NULL;
   
   return NULL;
@@ -2944,20 +2955,20 @@ HTREEITEM TreeView_GetSelection(HWND hwnd)
 
 void TreeView_DeleteItem(HWND hwnd, HTREEITEM item)
 {
-	printf("TreeView_DeleteItem()\n");
+	//printf("TreeView_DeleteItem()\n");
   if (!hwnd) return;
 }
 
 void TreeView_SelectItem(HWND hwnd, HTREEITEM item)
 {
-	printf("TreeView_SelectItem()\n");
+	//printf("TreeView_SelectItem()\n");
   if (!hwnd) return;
   
 }
 
 BOOL TreeView_GetItem(HWND hwnd, LPTVITEM pitem)
 {
-	printf("TreeView_GetItem()\n");
+	//printf("TreeView_GetItem()\n");
   if (!hwnd || !pitem || !(pitem->mask & TVIF_HANDLE) || !(pitem->hItem)) return FALSE;
   
   return TRUE;
@@ -2965,7 +2976,7 @@ BOOL TreeView_GetItem(HWND hwnd, LPTVITEM pitem)
 
 BOOL TreeView_SetItem(HWND hwnd, LPTVITEM pitem)
 {
-	printf("TreeView_SetItem()\n");
+	//printf("TreeView_SetItem()\n");
   if (!hwnd || !pitem || !(pitem->mask & TVIF_HANDLE) || !(pitem->hItem)) return FALSE;
   
   return TRUE;
@@ -2973,7 +2984,7 @@ BOOL TreeView_SetItem(HWND hwnd, LPTVITEM pitem)
 
 HTREEITEM TreeView_HitTest(HWND hwnd, TVHITTESTINFO *hti)
 {
-	printf("TreeView_HitTest()\n");
+	//printf("TreeView_HitTest()\n");
   if (!hwnd || !hti) return NULL;
   
   return NULL; // todo implement
@@ -2981,34 +2992,34 @@ HTREEITEM TreeView_HitTest(HWND hwnd, TVHITTESTINFO *hti)
 
 HTREEITEM TreeView_GetRoot(HWND hwnd)
 {
-	printf("TreeView_GetRoot()\n");
+	//printf("TreeView_GetRoot()\n");
   if (!hwnd) return NULL;
   return NULL;
 }
 
 HTREEITEM TreeView_GetChild(HWND hwnd, HTREEITEM item)
 {
-	printf("TreeView_GetChild()\n");
+	//printf("TreeView_GetChild()\n");
   if (!hwnd) return NULL;
   return NULL;
 }
 HTREEITEM TreeView_GetNextSibling(HWND hwnd, HTREEITEM item)
 {
-	printf("TreeView_GetNextSibling()\n");
+	//printf("TreeView_GetNextSibling()\n");
   if (!hwnd) return NULL;
   
   return NULL;
 }
 BOOL TreeView_SetIndent(HWND hwnd, int indent)
 {
-	printf("TreeView_SetIndent()\n");
+	//printf("TreeView_SetIndent()\n");
   return FALSE;
 }
 
 
 BOOL ShellExecute(HWND hwndDlg, const char *action,  const char *content1, const char *content2, const char *content3, int blah)
 {
-	printf("ShellExecute()\n");
+	//printf("ShellExecute()\n");
   return FALSE;
 }
 
@@ -3019,13 +3030,13 @@ BOOL ShellExecute(HWND hwndDlg, const char *action,  const char *content1, const
 // otherwise r is in hwndPar coordinates
 void SWELL_DrawFocusRect(HWND hwndPar, RECT *rct, void **handle)
 {
-	printf("SWELL_DrawFocusRect()\n");
+	//printf("SWELL_DrawFocusRect()\n");
   if (!handle) return;
 }
 
 void SWELL_BroadcastMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-  printf("SWELL_BroadcastMessage()\n");
+  //printf("SWELL_BroadcastMessage()\n");
   HWND h = SWELL_topwindows;
   while (h) 
   { 
@@ -3036,7 +3047,7 @@ void SWELL_BroadcastMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 int SWELL_SetWindowLevel(HWND hwnd, int newlevel)
 {
-	printf("SWELL_SetWindowLevel()\n");
+	//printf("SWELL_SetWindowLevel()\n");
   return 0;
 }
 void SetOpaque(HWND h, bool opaque)
@@ -3044,13 +3055,13 @@ void SetOpaque(HWND h, bool opaque)
 }
 int SWELL_GetDefaultButtonID(HWND hwndDlg, bool onlyIfEnabled)
 {
-	printf("SWELL_GetDefaultButtonID()\n");
+	//printf("SWELL_GetDefaultButtonID()\n");
   return 0;
 }
 
 void GetCursorPos(POINT *pt)
 {
-	printf("GetCursorPos()\n");
+	//printf("GetCursorPos()\n");
   pt->x=0;
   pt->y=0;
 #ifdef SWELL_TARGET_GDK
@@ -3069,7 +3080,7 @@ void GetCursorPos(POINT *pt)
 
 WORD GetAsyncKeyState(int key)
 {
-	printf("GetAsyncKeyState()\n");
+	//printf("GetAsyncKeyState()\n");
 #ifdef SWELL_TARGET_GDK
   if (SWELL_gdk_active)
   {
@@ -3105,7 +3116,7 @@ WORD GetAsyncKeyState(int key)
 
 DWORD GetMessagePos()
 {  
-	printf("GetMessagePos()\n");
+	//printf("GetMessagePos()\n");
   return s_lastMessagePos;
 }
 
@@ -3115,7 +3126,7 @@ void SWELL_HideApp()
 
 BOOL SWELL_GetGestureInfo(LPARAM lParam, GESTUREINFO* gi)
 {
-	printf("SWELL_GetGestureInfo()\n");
+	//printf("SWELL_GetGestureInfo()\n");
   return FALSE;
 }
 
@@ -3124,14 +3135,14 @@ void SWELL_SetWindowWantRaiseAmt(HWND h, int  amt)
 }
 int SWELL_GetWindowWantRaiseAmt(HWND h)
 {
-	printf("SWELL_GetWindowWantRaiseAmt()\n");
+	//printf("SWELL_GetWindowWantRaiseAmt()\n");
   return 0;
 }
 
 // copied from swell-wnd.mm, can maybe have a common impl instead
 void SWELL_GenerateDialogFromList(const void *_list, int listsz)
 {
-	printf("SWELL_GenerateDialogFromList()\n");
+	//printf("SWELL_GenerateDialogFromList()\n");
 #define SIXFROMLIST list->p1,list->p2,list->p3, list->p4, list->p5, list->p6
   SWELL_DlgResourceEntry *list = (SWELL_DlgResourceEntry*)_list;
   while (listsz>0)

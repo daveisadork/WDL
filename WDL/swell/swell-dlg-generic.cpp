@@ -40,7 +40,7 @@ static WDL_PtrList<modalDlgRet> s_modalDialogs;
 
 HWND DialogBoxIsActive()
 {
-	printf("DialogBoxIsActive()\n");
+	//printf("DialogBoxIsActive()\n");
   return s_modalDialogs.GetSize() ? s_modalDialogs.Get(s_modalDialogs.GetSize()-1)->hwnd : NULL;
 }
 

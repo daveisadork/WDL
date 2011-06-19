@@ -505,6 +505,7 @@ struct HWND__
 
 #ifdef SWELL_TARGET_GDK
   GtkWidget *m_oswindow;
+  GtkWidget *m_container;
 #endif
   char *m_title;
 
