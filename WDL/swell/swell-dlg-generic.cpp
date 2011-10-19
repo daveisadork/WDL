@@ -18,7 +18,7 @@ bool SWELL_owned_windows_levelincrease=false;
 
 static SWELL_DialogResourceIndex *resById(SWELL_DialogResourceIndex *reshead, const char *resid)
 {
-	printf("SWELL_DialogResourceIndex()\n");
+	//printf("SWELL_DialogResourceIndex()\n");
   SWELL_DialogResourceIndex *p=reshead;
   while (p)
   {
@@ -111,7 +111,7 @@ int SWELL_DialogBox(SWELL_DialogResourceIndex *reshead, const char *resid, HWND 
 
 HWND SWELL_CreateDialog(SWELL_DialogResourceIndex *reshead, const char *resid, HWND parent, DLGPROC dlgproc, LPARAM param)
 {
-	printf("SWELL_CreateDialog()\n");
+	//printf("SWELL_CreateDialog()\n");
   SWELL_DialogResourceIndex *p=resById(reshead,resid);
   if (!p&&resid) return 0;
   
