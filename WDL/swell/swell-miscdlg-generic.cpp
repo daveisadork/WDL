@@ -30,6 +30,7 @@
 #include "swell.h"
 #include "swell-internal.h"
 #include "swell-dlggen.h"
+#include <gtk/gtk.h>
 
 static const char *BFSF_Templ_dlgid;
 static DLGPROC BFSF_Templ_dlgproc;
@@ -45,7 +46,33 @@ void BrowseFile_SetTemplate(const char *dlgid, DLGPROC dlgProc, struct SWELL_Dia
 bool BrowseForSaveFile(const char *text, const char *initialdir, const char *initialfile, const char *extlist,
                        char *fn, int fnsize)
 {
-  return false;
+       printf("browse for save file - text: %s, initialdir: %s, initialfile: %s
+       bool ret = false;
+       GtkWidget *dialog;
+dialog = gtk_file_chooser_dialog_new (text,
+                                     NULL,
+                                     GTK_FILE_CHOOSER_ACTION_SAVE,
+                                     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                     GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                     NULL);
+if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+  {
+    fn = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+    fnsize = strlen(fn);
+    ret = true;
+  }
+gtk_widget_destroy (dialog);
+               /*int argc = 0;
+               char** argv = NULL;
+               QApplication myApp(argc, argv);
+        QString fileName = QFileDialog::getSaveFileName (0, QString(text), QStr
+        if (fileName == "") {
+            return false;
+        } else {
+            strncpy(fn, fileName.toUtf8(), fnsize);
+            return true;
+        }*/
+        return ret;
 }
 
 bool BrowseForDirectory(const char *text, const char *initialdir, char *fn, int fnsize)

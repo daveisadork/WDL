@@ -234,7 +234,7 @@ static void swell_manageOSwindow(HWND hwnd, bool wantfocus)
 
 void swell_OSupdateWindowToScreen(HWND hwnd, RECT *rect)
 {
-	//printf("swell_OSupdateWindowToScreen()\n");
+	printf("swell_OSupdateWindowToScreen()\n");
 #ifdef SWELL_LICE_GDI
   /*if (hwnd && hwnd->m_backingstore && hwnd->m_oswindow)
   {
@@ -2295,7 +2295,7 @@ void InvalidateRect(HWND hwnd, RECT *r, int eraseBk)
   }
 #endif
 #ifdef SWELL_TARGET_GDK
-  /*GdkRectangle rect;
+  GdkRectangle rect;
   if (r) { rect.x = r->left; rect.y = r->top; rect.width = r->right-r->left; rect.height = r->bottom - r->top; }
   else
   {
@@ -2319,7 +2319,7 @@ void InvalidateRect(HWND hwnd, RECT *r, int eraseBk)
     rect.y += tr.top;
     GdkWindow *wnd = gtk_widget_get_window(hwnd->m_oswindow);
     gdk_window_invalidate_rect(wnd,hwnd!=hwndCall || r ? &rect : NULL,true);
-  }*/
+  }
 #endif
 }
 
