@@ -21,8 +21,6 @@
   */
 
 
-#ifndef SWELL_PROVIDED_BY_APP
-
 #include "swell.h"
 #include "swell-internal.h"
 #include <typeinfo>
@@ -995,6 +993,10 @@ void GetWindowContentViewRect(HWND hwnd, RECT *r)
 #ifdef SWELL_TARGET_GDK
   if (hwnd && hwnd->m_oswindow) 
   {
+#if SWELL_TARGET_GDK == 2
+    gint w=0,h=0,d=0,px=0,py=0;
+    gdk_window_get_geometry(hwnd->m_oswindow,&px,&py,&w,&h,&d);
+#else
     gint w=0,h=0,px=0,py=0;
     GdkWindow *wnd = gtk_widget_get_window(GTK_WIDGET(hwnd->m_oswindow));
 #ifdef GTK2
@@ -2016,6 +2018,10 @@ int TabCtrl_GetCurSel(HWND hwnd)
 }
 
 void ListView_SetExtendedListViewStyleEx(HWND h, int flag, int mask)
+{
+}
+
+void SWELL_SetListViewFastClickMask(HWND hList, int mask)
 {
 }
 

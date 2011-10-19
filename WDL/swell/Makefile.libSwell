@@ -13,7 +13,6 @@ else
 CFLAGS += -O2 -s
 endif
 
-CXXFLAGS = $(CFLAGS)
 LINKEXTRA =  -lpthread -ldl -shared
 
 
@@ -48,6 +47,7 @@ OBJS += $(LICE_OBJS)
 endif
 endif
 
+CXXFLAGS = $(CFLAGS)
 
 default: libSwell.so
 
