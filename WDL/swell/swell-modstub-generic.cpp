@@ -18,17 +18,19 @@ static struct
 {
   const char *name;
   void **func;
-} api_tab[]={
-  
+} api_tab[]= {
+
 #undef _WDL_SWELL_H_API_DEFINED_
 #undef SWELL_API_DEFINE
 #define SWELL_API_DEFINE(ret, func, parms) {#func, (void **)&func },
 
 #include "swell.h"
-  
+
 };
 
-static int dummyFunc() { return 0; }
+static int dummyFunc() {
+  return 0;
+}
 
 #ifdef SWELL_LOAD_SWELL_DYLIB
 static void *(*__loaded_getfunc)(const char *name)=NULL;
@@ -63,11 +65,11 @@ public:
     void *tmp = dlopen(NULL,RTLD_LAZY);
 #endif
 
-    if (tmp) *(void **)&SWELLAPI_GetFunc = dlsym(tmp,"SWELLAPI_GetFunc"); 
+    if (tmp) *(void **)&SWELLAPI_GetFunc = dlsym(tmp,"SWELLAPI_GetFunc");
     //printf("tmp=%08x, SWELLAPI_GetFunc=%08x\n",tmp,SWELLAPI_GetFunc);
-      
+
     if (SWELLAPI_GetFunc && SWELLAPI_GetFunc(NULL)!=(void*)0x100) SWELLAPI_GetFunc=0;
-      
+
 #ifdef SWELL_LOAD_SWELL_DYLIB
     __loaded_getfunc = SWELLAPI_GetFunc;
 #endif

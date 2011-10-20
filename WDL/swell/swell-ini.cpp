@@ -18,11 +18,11 @@
     3. This notice may not be removed or altered from any source distribution.
 
   This file implements basic win32 GetPrivateProfileString / etc support.
-  It works by caching reads, but writing through on every write that is required (to ensure 
-  that updates take, especially when being updated from multiple modules who have their own 
+  It works by caching reads, but writing through on every write that is required (to ensure
+  that updates take, especially when being updated from multiple modules who have their own
   cache of the .ini file).
 
-  It is threadsafe, but in theory if two processes are trying to access the same ini, 
+  It is threadsafe, but in theory if two processes are trying to access the same ini,
   results may go a bit unpredictable (but in general the file should NOT get corrupted,
   we hope).
 
@@ -38,21 +38,23 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-static void deleteStringKeyedArray(WDL_StringKeyedArray<char *> *p) {   delete p; }
+static void deleteStringKeyedArray(WDL_StringKeyedArray<char *> *p) {
+  delete p;
+}
 
 struct iniFileContext
 {
-  iniFileContext() : m_sections(false,deleteStringKeyedArray) 
-  { 
+  iniFileContext() : m_sections(false,deleteStringKeyedArray)
+  {
     m_curfn=NULL;
     m_curfp=NULL;
     m_lastaccesscnt=0;
     m_curfn_time=0;
   }
   ~iniFileContext() { }
-  
+
   char *m_curfn;
-  FILE *m_curfp;  
+  FILE *m_curfp;
   WDL_UINT64 m_lastaccesscnt;
   time_t m_curfn_time;
   WDL_StringKeyedArray< WDL_StringKeyedArray<char *> * > m_sections;
@@ -79,10 +81,11 @@ static iniFileContext *GetFileContext(const char *name)
   {
     int w;
     bool had_z=false;
-    WDL_UINT64 bestcnt = 0; bestcnt--;
-    for (w=0;w<NUM_OPEN_CONTEXTS;w++)
+    WDL_UINT64 bestcnt = 0;
+    bestcnt--;
+    for (w=0; w<NUM_OPEN_CONTEXTS; w++)
     {
-      if (s_ctxs[w].m_curfn && !stricmp(s_ctxs[w].m_curfn,name)) 
+      if (s_ctxs[w].m_curfn && !stricmp(s_ctxs[w].m_curfn,name))
       {
         best_z=w;
         break;
@@ -90,15 +93,21 @@ static iniFileContext *GetFileContext(const char *name)
 
       if (!had_z)
       {
-        if (!s_ctxs[w].m_curfn || !s_ctxs[w].m_curfp) { best_z = w; had_z=true; }    
-        else if (s_ctxs[w].m_lastaccesscnt < bestcnt) { best_z = w; bestcnt = s_ctxs[w].m_lastaccesscnt; }
+        if (!s_ctxs[w].m_curfn || !s_ctxs[w].m_curfp) {
+          best_z = w;
+          had_z=true;
+        }
+        else if (s_ctxs[w].m_lastaccesscnt < bestcnt) {
+          best_z = w;
+          bestcnt = s_ctxs[w].m_lastaccesscnt;
+        }
       }
     }
   }
-    
+
   iniFileContext *ctx = &s_ctxs[best_z];
   ctx->m_lastaccesscnt=++acc_cnt;
-  
+
   if (!ctx->m_curfn || stricmp(ctx->m_curfn,name) || !ctx->m_curfp || ctx->m_curfn_time != getfileupdtime(ctx->m_curfp))
   {
     ctx->m_sections.DeleteAll();
@@ -110,15 +119,15 @@ static iniFileContext *GetFileContext(const char *name)
     }
     if (ctx->m_curfp) fclose(ctx->m_curfp);
     FILE *fp = ctx->m_curfp=fopen(name,"r");
-    
-    if (!ctx->m_curfp) 
+
+    if (!ctx->m_curfp)
     {
 //      printf("error opening %s\n",m_curfn);
       return ctx; // allow to proceed (empty file)
     }
     flockfile(fp);
-    
-    
+
+
     // parse .ini file
     WDL_StringKeyedArray<char *> *cursec=NULL;
     char buf[32768];
@@ -147,7 +156,7 @@ static iniFileContext *GetFileContext(const char *name)
         {
           *p2=0;
           if (cursec) cursec->Resort();
-          
+
           if (p[1])
           {
             cursec = ctx->m_sections.Get(p+1);
@@ -167,14 +176,14 @@ static iniFileContext *GetFileContext(const char *name)
         if (t)
         {
           *t++=0;
-          if (*p) 
+          if (*p)
             cursec->AddUnsorted(p,strdup(t));
         }
       }
     }
     if (cursec) cursec->Resort();
     ctx->m_curfn_time = getfileupdtime(fp);
-    funlockfile(fp);    
+    funlockfile(fp);
   }
   return ctx;
 }
@@ -185,19 +194,19 @@ static void WriteBackFile(iniFileContext *ctx)
   if (ctx->m_curfp) fclose(ctx->m_curfp);
   FILE *fp = ctx->m_curfp=fopen(ctx->m_curfn,"w");
   if (!ctx->m_curfp) return;
-  
+
   flockfile(fp);
-  
+
   int x;
   for (x = 0; ; x ++)
   {
     const char *secname=NULL;
     WDL_StringKeyedArray<char *> * cursec = ctx->m_sections.Enumerate(x,&secname);
     if (!cursec || !secname) break;
-    
+
     fprintf(fp,"[%s]\n",secname);
     int y;
-    for (y=0;;y++)
+    for (y=0;; y++)
     {
       const char *keyname = NULL;
       const char *keyvalue = cursec->Enumerate(y,&keyname);
@@ -205,12 +214,12 @@ static void WriteBackFile(iniFileContext *ctx)
       if (*keyname) fprintf(fp,"%s=%s\n",keyname,keyvalue);
     }
     fprintf(fp,"\n");
-  }  
-  
+  }
+
   fflush(fp);
   ctx->m_curfn_time = getfileupdtime(fp);
   funlockfile(fp);
-  
+
 }
 
 BOOL WritePrivateProfileSection(const char *appname, const char *strings, const char *fn)
@@ -224,12 +233,12 @@ BOOL WritePrivateProfileSection(const char *appname, const char *strings, const 
   if (!cursec)
   {
     if (!*strings) return TRUE;
-    
-    cursec = new WDL_StringKeyedArray<char *>(false,WDL_StringKeyedArray<char *>::freecharptr);   
+
+    cursec = new WDL_StringKeyedArray<char *>(false,WDL_StringKeyedArray<char *>::freecharptr);
     ctx->m_sections.Insert(appname,cursec);
   }
   else cursec->DeleteAll();
-  
+
   if (*strings)
   {
     while (*strings)
@@ -243,12 +252,12 @@ BOOL WritePrivateProfileSection(const char *appname, const char *strings, const 
         *p++=0;
         cursec->Insert(buf,strdup(strings + (p-buf)));
       }
-      
+
       strings += strlen(strings)+1;
     }
   }
   WriteBackFile(ctx);
-  
+
   return TRUE;
 }
 
@@ -258,10 +267,10 @@ BOOL WritePrivateProfileString(const char *appname, const char *keyname, const c
   if (!appname || (keyname && !*keyname)) return FALSE;
 //  printf("writing %s %s %s %s\n",appname,keyname,val,fn);
   WDL_MutexLock lock(&m_mutex);
-  
+
   iniFileContext *ctx = GetFileContext(fn);
   if (!ctx) return FALSE;
-    
+
   if (!keyname)
   {
     if (ctx->m_sections.Get(appname))
@@ -270,7 +279,7 @@ BOOL WritePrivateProfileString(const char *appname, const char *keyname, const c
       WriteBackFile(ctx);
     }
   }
-  else 
+  else
   {
     WDL_StringKeyedArray<char *> * cursec = ctx->m_sections.Get(appname);
     if (!val)
@@ -286,9 +295,9 @@ BOOL WritePrivateProfileString(const char *appname, const char *keyname, const c
       const char *p;
       if (!cursec || !(p=cursec->Get(keyname)) || strcmp(p,val))
       {
-        if (!cursec) 
+        if (!cursec)
         {
-          cursec = new WDL_StringKeyedArray<char *>(false,WDL_StringKeyedArray<char *>::freecharptr);   
+          cursec = new WDL_StringKeyedArray<char *>(false,WDL_StringKeyedArray<char *>::freecharptr);
           ctx->m_sections.Insert(appname,cursec);
         }
         cursec->Insert(keyname,strdup(val));
@@ -304,8 +313,8 @@ BOOL WritePrivateProfileString(const char *appname, const char *keyname, const c
 DWORD GetPrivateProfileSection(const char *appname, char *strout, DWORD strout_len, const char *fn)
 {
   WDL_MutexLock lock(&m_mutex);
-  
-  if (!strout || strout_len<2) 
+
+  if (!strout || strout_len<2)
   {
     if (strout && strout_len==1) *strout=0;
     return 0;
@@ -314,31 +323,34 @@ DWORD GetPrivateProfileSection(const char *appname, char *strout, DWORD strout_l
   int szOut=0;
   WDL_StringKeyedArray<char *> *cursec = ctx ? ctx->m_sections.Get(appname) : NULL;
 
-  if (ctx) 
+  if (ctx)
   {
     int x;
-    for(x=0;x<cursec->GetSize();x++)
+    for(x=0; x<cursec->GetSize(); x++)
     {
       const char *kv = NULL;
       const char *val = cursec->Enumerate(x,&kv);
       if (val && kv)
-      {        
+      {
         int l;
-       
+
 #define WRSTR(v) \
         l= strlen(v); \
         if (l > strout_len - szOut - 2) l = strout_len - 2 - szOut; \
         if (l>0) { memcpy(strout+szOut,v,l); szOut+=l; }
-        
+
         WRSTR(kv)
         WRSTR("=")
         WRSTR(val)
-        
+
 #undef WRSTR
 
         l=1;
         if (l > strout_len - szOut - 1) l = strout_len - 1 - szOut;
-        if (l>0) { memset(strout+szOut,0,l); szOut+=l; }
+        if (l>0) {
+          memset(strout+szOut,0,l);
+          szOut+=l;
+        }
         if (szOut >= strout_len-1)
         {
           strout[strout_len-1]=0;
@@ -355,10 +367,10 @@ DWORD GetPrivateProfileSection(const char *appname, char *strout, DWORD strout_l
 DWORD GetPrivateProfileString(const char *appname, const char *keyname, const char *def, char *ret, int retsize, const char *fn)
 {
   WDL_MutexLock lock(&m_mutex);
-  
+
 //  printf("getprivateprofilestring: %s\n",fn);
   iniFileContext *ctx= GetFileContext(fn);
-  
+
   if (ctx)
   {
     if (!appname||!keyname)
@@ -381,14 +393,14 @@ DWORD GetPrivateProfileString(const char *appname, const char *keyname, const ch
         {
           int y;
           for (y = 0; ; y ++)
-          {            
+          {
             const char *keyname=NULL;
             if (!cursec->Enumerate(y,&keyname)||!keyname) break;
             if (*keyname) tmpbuf.Add(keyname,strlen(keyname)+1);
           }
         }
       }
-      
+
       int sz=tmpbuf.GetSize()-1;
       if (sz<0)
       {
@@ -398,10 +410,10 @@ DWORD GetPrivateProfileString(const char *appname, const char *keyname, const ch
       if (sz > retsize-2) sz=retsize-2;
       memcpy(ret,tmpbuf.Get(),sz);
       ret[sz]=ret[sz+1]=0;
-        
+
       return sz;
     }
-    
+
     WDL_StringKeyedArray<char *> *cursec = ctx->m_sections.Get(appname);
     if (cursec)
     {
@@ -443,7 +455,7 @@ static bool __readbyte(char *src, unsigned char *out)
     src++;
     s-=4;
   }
-  
+
   *out=cv;
   return true;
 }
@@ -451,7 +463,7 @@ static bool __readbyte(char *src, unsigned char *out)
 BOOL GetPrivateProfileStruct(const char *appname, const char *keyname, void *buf, int bufsz, const char *fn)
 {
   if (!appname || !keyname) return 0;
-  char *tmp=(char *)malloc((bufsz+1)*2+16); 
+  char *tmp=(char *)malloc((bufsz+1)*2+16);
   if (!tmp) return 0;
 
   BOOL ret=0;

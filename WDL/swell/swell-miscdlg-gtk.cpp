@@ -16,7 +16,7 @@
     2. Altered source versions must be plainly marked as such, and must not be
        misrepresented as being the original software.
     3. This notice may not be removed or altered from any source distribution.
-  
+
 
     This file provides basic APIs for browsing for files, directories, and messageboxes.
 
@@ -46,71 +46,71 @@ void BrowseFile_SetTemplate(const char *dlgid, DLGPROC dlgProc, struct SWELL_Dia
 bool BrowseForSaveFile(const char *text, const char *initialdir, const char *initialfile, const char *extlist,
                        char *fn, int fnsize)
 {
-	printf("browse for save file - text: %s, initialdir: %s, initialfile: %s, extlist: %s \n", text, initialdir, initialfile, extlist);
-	bool ret = false;
-	GtkWidget *dialog;
-	dialog = gtk_file_chooser_dialog_new (text,
-				      NULL,
-				      GTK_FILE_CHOOSER_ACTION_SAVE,
-				      GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-				      GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
-				      NULL);
-	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
-	gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), initialdir);
-    gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), initialfile);
-	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
-	{
-    	fn = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (dialog));
-    	fnsize = strlen(fn);
-    	ret = true;
-  	}
-	gtk_widget_destroy (dialog);
-    return ret;
+  printf("browse for save file - text: %s, initialdir: %s, initialfile: %s, extlist: %s \n", text, initialdir, initialfile, extlist);
+  bool ret = false;
+  GtkWidget *dialog;
+  dialog = gtk_file_chooser_dialog_new (text,
+                                        NULL,
+                                        GTK_FILE_CHOOSER_ACTION_SAVE,
+                                        GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                        GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+                                        NULL);
+  gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
+  gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), initialdir);
+  gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), initialfile);
+  if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+  {
+    fn = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (dialog));
+    fnsize = strlen(fn);
+    ret = true;
+  }
+  gtk_widget_destroy (dialog);
+  return ret;
 }
 
 bool BrowseForDirectory(const char *text, const char *initialdir, char *fn, int fnsize)
 {
-	printf("browse for directory\n");
-	bool ret = false;
-	GtkWidget *dialog;
-	dialog = gtk_file_chooser_dialog_new (text,
-				      NULL,
-				      GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
-				      GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-				      GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-				      NULL);
-	gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), initialdir);
-	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
-	{
-    	fn = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (dialog));
-    	fnsize = strlen(fn);
-    	ret = true;
-  	}
-	gtk_widget_destroy (dialog);
-    return ret;
+  printf("browse for directory\n");
+  bool ret = false;
+  GtkWidget *dialog;
+  dialog = gtk_file_chooser_dialog_new (text,
+                                        NULL,
+                                        GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
+                                        GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                        GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                        NULL);
+  gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), initialdir);
+  if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+  {
+    fn = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (dialog));
+    fnsize = strlen(fn);
+    ret = true;
+  }
+  gtk_widget_destroy (dialog);
+  return ret;
 }
 
 
-char *BrowseForFiles(const char *text, const char *initialdir, 
+char *BrowseForFiles(const char *text, const char *initialdir,
                      const char *initialfile, bool allowmul, const char *extlist)
 {
-	printf("browse for files\n");
-	char* ret = NULL;
-	GtkWidget *dialog;
-	dialog = gtk_file_chooser_dialog_new (text,
-				      NULL,
-				      GTK_FILE_CHOOSER_ACTION_OPEN,
-				      GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-				      GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-				      NULL);
-	gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), initialdir);
-    gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), initialfile);
-	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
-	{
-    	ret = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (dialog));
-  	}
-	gtk_widget_destroy (dialog);
-    return ret;
+  printf("browse for files\n");
+  char* ret = NULL;
+  GtkWidget *dialog;
+  dialog = gtk_file_chooser_dialog_new (text,
+                                        NULL,
+                                        GTK_FILE_CHOOSER_ACTION_OPEN,
+                                        GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                        GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                        NULL);
+  gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), initialdir);
+  gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), initialfile);
+  if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+  {
+    ret = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (dialog));
+  }
+  gtk_widget_destroy (dialog);
+  return ret;
 }
 
 /*
@@ -141,11 +141,11 @@ static LRESULT WINAPI swellMessageBoxProc(HWND hwnd, UINT uMsg, WPARAM wParam, L
         HWND lab = SWELL_MakeLabel(-1,parms[0] ? (const char *)parms[0] : "", 0, 0,0,10,10,0); //we'll resize this manually
         if (lab && parms[0])
         {
-          HDC dc=GetDC(lab); 
+          HDC dc=GetDC(lab);
           DrawText(dc,(const char *)parms[0],-1,&labsize,DT_CALCRECT);// if dc isnt valid yet, try anyway
           if (dc) ReleaseDC(lab,dc);
         }
-        
+
         int buttonh=12;
         int buttonw = 35, buttonspace=5;
         int buttontotalw = nbuttons * buttonw + (nbuttons-1)*buttonspace;
@@ -183,31 +183,31 @@ int MessageBox(HWND hwndParent, const char *text, const char *caption, int type)
   GtkWidget *dialog = gtk_message_dialog_new (hwndParent?GTK_WINDOW(hwndParent->m_oswindow):NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_OTHER, GTK_BUTTONS_NONE, "%s", text);
   gtk_window_set_title(GTK_WINDOW(dialog), caption);
   if (type == MB_OK) {
-  	gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_OK, IDOK, NULL);
+    gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_OK, IDOK, NULL);
   } else if (type == MB_OKCANCEL) {
-  	gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_OK, IDOK, GTK_STOCK_CANCEL, IDCANCEL, NULL);
+    gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_OK, IDOK, GTK_STOCK_CANCEL, IDCANCEL, NULL);
   } else if (type == MB_YESNO) {
-  	gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_YES, IDYES, GTK_STOCK_NO, IDNO, NULL);
+    gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_YES, IDYES, GTK_STOCK_NO, IDNO, NULL);
   } else if (type == MB_RETRYCANCEL) {
-  	gtk_dialog_add_buttons(GTK_DIALOG(dialog), "Retry", IDRETRY, GTK_STOCK_CANCEL, IDCANCEL, NULL);
+    gtk_dialog_add_buttons(GTK_DIALOG(dialog), "Retry", IDRETRY, GTK_STOCK_CANCEL, IDCANCEL, NULL);
   } else if (type == MB_YESNOCANCEL) {
-  	gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_YES, IDYES, GTK_STOCK_NO, IDNO, GTK_STOCK_CANCEL, IDCANCEL, NULL);
+    gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_YES, IDYES, GTK_STOCK_NO, IDNO, GTK_STOCK_CANCEL, IDCANCEL, NULL);
   }
   int ret = gtk_dialog_run(GTK_DIALOG(dialog));
   gtk_widget_destroy (dialog);
   return ret;
-  
+
   //const void *parms[3]= {text,caption,(void*)(INT_PTR)type} ;
   //return DialogBoxParam(NULL,NULL,NULL,swellMessageBoxProc,(LPARAM)parms);
 
 #if 0
   int ret=0;
-  
+
   if (type == MB_OK)
   {
     // todo
     ret=IDOK;
-  }	
+  }
   else if (type == MB_OKCANCEL)
   {
     ret = 1; // todo
@@ -235,8 +235,8 @@ int MessageBox(HWND hwndParent, const char *text, const char *caption, int type)
     else if (ret==-1) ret=IDNO;
     else ret=IDCANCEL;
   }
-  
-  return ret; 
+
+  return ret;
 #endif
 }
 

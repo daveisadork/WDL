@@ -16,7 +16,7 @@
     2. Altered source versions must be plainly marked as such, and must not be
        misrepresented as being the original software.
     3. This notice may not be removed or altered from any source distribution.
-  
+
 
     This file provides basic windows menu API
 
@@ -41,7 +41,7 @@ HMENU__ *HMENU__::Duplicate()
     MENUITEMINFO *inf = (MENUITEMINFO*)calloc(sizeof(MENUITEMINFO),1);
 
     *inf = *s;
-    if (inf->dwTypeData) 
+    if (inf->dwTypeData)
     {
       // todo handle bitmap types
       inf->dwTypeData=strdup(inf->dwTypeData);
@@ -70,13 +70,13 @@ static MENUITEMINFO *GetMenuItemByID(HMENU menu, int id, bool searchChildren=tru
     if (menu->items.Get(x)->wID == id) return menu->items.Get(x);
 
   if (searchChildren) for (x = 0; x < menu->items.GetSize(); x ++)
-  { 
-    if (menu->items.Get(x)->hSubMenu)
     {
-      MENUITEMINFO *ret = GetMenuItemByID(menu->items.Get(x)->hSubMenu,id,true);
-      if (ret) return ret;
+      if (menu->items.Get(x)->hSubMenu)
+      {
+        MENUITEMINFO *ret = GetMenuItemByID(menu->items.Get(x)->hSubMenu,id,true);
+        if (ret) return ret;
+      }
     }
-  }
 
   return 0;
 }
@@ -89,7 +89,7 @@ bool SetMenuItemText(HMENU hMenu, int idx, int flag, const char *text)
   item->fType = MFT_STRING;
   free(item->dwTypeData); // todo handle bitmap types
   item->dwTypeData=strdup(text?text:"");
-  
+
   return true;
 }
 
@@ -97,7 +97,7 @@ bool EnableMenuItem(HMENU hMenu, int idx, int en)
 {
   MENUITEMINFO *item = hMenu ? ((en & MF_BYPOSITION) ? hMenu->items.Get(idx) : GetMenuItemByID(hMenu,idx)) : NULL;
   if (!item) return false;
- 
+
   int mask = MF_ENABLED|MF_DISABLED|MF_GRAYED;
   item->fState &= ~mask;
   item->fState |= en&mask;
@@ -109,11 +109,11 @@ bool CheckMenuItem(HMENU hMenu, int idx, int chk)
 {
   MENUITEMINFO *item = hMenu ? ((chk & MF_BYPOSITION) ? hMenu->items.Get(idx) : GetMenuItemByID(hMenu,idx)) : NULL;
   if (!item) return false;
-  
+
   int mask = MF_CHECKED;
   item->fState &= ~mask;
   item->fState |= chk&mask;
-  
+
   return true;
 }
 HMENU SWELL_GetCurrentMenu()
@@ -189,7 +189,7 @@ bool DeleteMenu(HMENU hMenu, int idx, int flag)
   {
     int x;
     int cnt=0;
-    for (x=0;x<hMenu->items.GetSize(); x ++)
+    for (x=0; x<hMenu->items.GetSize(); x ++)
     {
       if (!hMenu->items.Get(x)->hSubMenu && hMenu->items.Get(x)->wID == idx)
       {
@@ -199,7 +199,7 @@ bool DeleteMenu(HMENU hMenu, int idx, int flag)
     }
     if (!cnt)
     {
-      for (x=0;x<hMenu->items.GetSize(); x ++)
+      for (x=0; x<hMenu->items.GetSize(); x ++)
       {
         if (hMenu->items.Get(x)->hSubMenu) cnt += DeleteMenu(hMenu->items.Get(x)->hSubMenu,idx,flag)?1:0;
       }
@@ -214,12 +214,12 @@ BOOL SetMenuItemInfo(HMENU hMenu, int pos, BOOL byPos, MENUITEMINFO *mi)
   if (!hMenu) return 0;
   MENUITEMINFO *item = byPos ? hMenu->items.Get(pos) : GetMenuItemByID(hMenu, pos, true);
   if (!item) return 0;
-  
+
   if ((mi->fMask & MIIM_SUBMENU) && mi->hSubMenu != item->hSubMenu)
-  {  
+  {
     delete item->hSubMenu;
     item->hSubMenu = mi->hSubMenu;
-  } 
+  }
   if (mi->fMask & MIIM_TYPE)
   {
     free(item->dwTypeData); // todo handle bitmap types
@@ -234,7 +234,7 @@ BOOL SetMenuItemInfo(HMENU hMenu, int pos, BOOL byPos, MENUITEMINFO *mi)
   if (mi->fMask & MIIM_STATE) item->fState = mi->fState;
   if (mi->fMask & MIIM_ID) item->wID = mi->wID;
   if (mi->fMask & MIIM_DATA) item->dwItemData = mi->dwItemData;
-  
+
   return true;
 }
 
@@ -243,7 +243,7 @@ BOOL GetMenuItemInfo(HMENU hMenu, int pos, BOOL byPos, MENUITEMINFO *mi)
   if (!hMenu) return 0;
   MENUITEMINFO *item = byPos ? hMenu->items.Get(pos) : GetMenuItemByID(hMenu, pos, true);
   if (!item) return 0;
-  
+
   if (mi->fMask & MIIM_TYPE)
   {
     mi->fType = item->fType;
@@ -252,20 +252,21 @@ BOOL GetMenuItemInfo(HMENU hMenu, int pos, BOOL byPos, MENUITEMINFO *mi)
       lstrcpyn(mi->dwTypeData,item->dwTypeData?item->dwTypeData:"",mi->cch);
     }
   }
-  
+
   if (mi->fMask & MIIM_DATA) mi->dwItemData = item->dwItemData;
   if (mi->fMask & MIIM_STATE) mi->fState = item->fState;
   if (mi->fMask & MIIM_ID) mi->wID = item->wID;
   if (mi->fMask & MIIM_SUBMENU) mi->hSubMenu = item->hSubMenu;
-  
+
   return 1;
-  
+
 }
 
 void SWELL_InsertMenu(HMENU menu, int pos, int flag, int idx, const char *str)
 {
-  MENUITEMINFO mi={sizeof(mi),MIIM_ID|MIIM_STATE|MIIM_TYPE,MFT_STRING,
-    (flag & ~MF_BYPOSITION),idx,NULL,NULL,NULL,0,(char *)str};
+  MENUITEMINFO mi= {sizeof(mi),MIIM_ID|MIIM_STATE|MIIM_TYPE,MFT_STRING,
+                    (flag & ~MF_BYPOSITION),idx,NULL,NULL,NULL,0,(char *)str
+                   };
   InsertMenuItem(menu,pos,(flag&MF_BYPOSITION) ?  TRUE : FALSE, &mi);
 }
 
@@ -273,15 +274,15 @@ void InsertMenuItem(HMENU hMenu, int pos, BOOL byPos, MENUITEMINFO *mi)
 {
   if (!hMenu) return;
   int ni=hMenu->items.GetSize();
-  
-  if (!byPos) 
+
+  if (!byPos)
   {
     int x;
-    for (x=0;x<ni && hMenu->items.Get(x)->wID != pos; x++);
+    for (x=0; x<ni && hMenu->items.Get(x)->wID != pos; x++);
     pos = x;
   }
-  if (pos < 0 || pos > ni) pos=ni; 
-  
+  if (pos < 0 || pos > ni) pos=ni;
+
   MENUITEMINFO *inf = (MENUITEMINFO*)calloc(sizeof(MENUITEMINFO),1);
   inf->fType = mi->fType;
   if (mi->fType == MFT_STRING)
@@ -318,157 +319,173 @@ static LRESULT WINAPI submenuWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM
   const int itemheight = 12, lcol=12, rcol=12, mcol=10;
   switch (uMsg)
   {
-    case WM_CREATE:
-      m_trackingMenus.Add(hwnd);
-      SetWindowLongPtr(hwnd,GWLP_USERDATA,lParam);
+  case WM_CREATE:
+    m_trackingMenus.Add(hwnd);
+    SetWindowLongPtr(hwnd,GWLP_USERDATA,lParam);
 
-      if (m_trackingPar && !(m_trackingFlags&TPM_NONOTIFY))
-        SendMessage(m_trackingPar,WM_INITMENUPOPUP,(WPARAM)lParam,0);
+    if (m_trackingPar && !(m_trackingFlags&TPM_NONOTIFY))
+      SendMessage(m_trackingPar,WM_INITMENUPOPUP,(WPARAM)lParam,0);
 
+    {
+      HDC hdc = GetDC(hwnd);
+      HMENU__ *menu = (HMENU__*)lParam;
+      int ht = menu->items.GetSize()*itemheight, wid=100,wid2=0;
+      int xpos=m_trackingPt.x;
+      int ypos=m_trackingPt.y;
+      int x;
+      for (x=0; x < menu->items.GetSize(); x++)
       {
-        HDC hdc = GetDC(hwnd);
-        HMENU__ *menu = (HMENU__*)lParam;
-        int ht = menu->items.GetSize()*itemheight, wid=100,wid2=0;
-        int xpos=m_trackingPt.x;
-        int ypos=m_trackingPt.y;
-        int x;
-        for (x=0; x < menu->items.GetSize(); x++)
+        MENUITEMINFO *inf = menu->items.Get(x);
+        if (inf->fType == MFT_STRING && inf->dwTypeData)
         {
-          MENUITEMINFO *inf = menu->items.Get(x);
-          if (inf->fType == MFT_STRING && inf->dwTypeData)
+          RECT r= {0,};
+          const char *pt2 = strstr(inf->dwTypeData,"\t");
+          DrawText(hdc,inf->dwTypeData,pt2 ? pt2-inf->dwTypeData : -1,&r,DT_CALCRECT|DT_SINGLELINE);
+          if (r.right > wid) wid=r.right;
+          if (pt2)
           {
-            RECT r={0,};
-            const char *pt2 = strstr(inf->dwTypeData,"\t");
-            DrawText(hdc,inf->dwTypeData,pt2 ? pt2-inf->dwTypeData : -1,&r,DT_CALCRECT|DT_SINGLELINE);
-            if (r.right > wid) wid=r.right;
-            if (pt2)
-            { 
-              r.right=r.left;
-              DrawText(hdc,pt2+1,-1,&r,DT_CALCRECT|DT_SINGLELINE);
-              if (r.right > wid2) wid2=r.right;
-            }
+            r.right=r.left;
+            DrawText(hdc,pt2+1,-1,&r,DT_CALCRECT|DT_SINGLELINE);
+            if (r.right > wid2) wid2=r.right;
           }
         }
-        wid+=lcol+rcol + (wid2?wid2+mcol:0);
-        ReleaseDC(hwnd,hdc);
-        RECT tr={xpos,ypos,xpos+wid,ypos+ht},vp;
-        SWELL_GetViewPort(&vp,&tr,true);
-        if (tr.bottom > vp.bottom) { tr.top += vp.bottom-tr.bottom; tr.bottom=vp.bottom; }
-        if (tr.right > vp.right) { tr.left += vp.right-tr.right; tr.right=vp.right; }
-        if (tr.left < vp.left) { tr.right += vp.left-tr.left; tr.left=vp.left; }
-        if (tr.top < vp.top) { tr.bottom += vp.top-tr.top; tr.top=vp.top; }
-        SetWindowPos(hwnd,NULL,tr.left,tr.top,tr.right-tr.left,tr.bottom-tr.top,SWP_NOZORDER);
       }
-      SetWindowLong(hwnd,GWL_STYLE,GetWindowLong(hwnd,GWL_STYLE)&~WS_CAPTION);
-      ShowWindow(hwnd,SW_SHOW);
-      SetFocus(hwnd);
-      SetTimer(hwnd,1,250,NULL);
+      wid+=lcol+rcol + (wid2?wid2+mcol:0);
+      ReleaseDC(hwnd,hdc);
+      RECT tr= {xpos,ypos,xpos+wid,ypos+ht},vp;
+      SWELL_GetViewPort(&vp,&tr,true);
+      if (tr.bottom > vp.bottom) {
+        tr.top += vp.bottom-tr.bottom;
+        tr.bottom=vp.bottom;
+      }
+      if (tr.right > vp.right) {
+        tr.left += vp.right-tr.right;
+        tr.right=vp.right;
+      }
+      if (tr.left < vp.left) {
+        tr.right += vp.left-tr.left;
+        tr.left=vp.left;
+      }
+      if (tr.top < vp.top) {
+        tr.bottom += vp.top-tr.top;
+        tr.top=vp.top;
+      }
+      SetWindowPos(hwnd,NULL,tr.left,tr.top,tr.right-tr.left,tr.bottom-tr.top,SWP_NOZORDER);
+    }
+    SetWindowLong(hwnd,GWL_STYLE,GetWindowLong(hwnd,GWL_STYLE)&~WS_CAPTION);
+    ShowWindow(hwnd,SW_SHOW);
+    SetFocus(hwnd);
+    SetTimer(hwnd,1,250,NULL);
     break;
-    case WM_PAINT:
+  case WM_PAINT:
+  {
+    PAINTSTRUCT ps;
+    if (BeginPaint(hwnd,&ps))
+    {
+      RECT cr;
+      GetClientRect(hwnd,&cr);
+      HBRUSH br=CreateSolidBrush(GetSysColor(COLOR_3DFACE));
+      HPEN pen=CreatePen(PS_SOLID,0,GetSysColor(COLOR_3DSHADOW));
+      HGDIOBJ oldbr = SelectObject(ps.hdc,br);
+      HGDIOBJ oldpen = SelectObject(ps.hdc,pen);
+      Rectangle(ps.hdc,cr.left,cr.top,cr.right-1,cr.bottom-1);
+      SetBkMode(ps.hdc,TRANSPARENT);
+      int cols[2]= { GetSysColor(COLOR_BTNTEXT),GetSysColor(COLOR_3DHILIGHT)};
+      HMENU__ *menu = (HMENU__*)GetWindowLongPtr(hwnd,GWLP_USERDATA);
+      int x;
+      for (x=0; x < menu->items.GetSize(); x++)
       {
-        PAINTSTRUCT ps;
-        if (BeginPaint(hwnd,&ps))
+        MENUITEMINFO *inf = menu->items.Get(x);
+        RECT r= {lcol,x*itemheight,cr.right,(x+1)*itemheight};
+        bool dis = !!(inf->fState & MF_GRAYED);
+        SetTextColor(ps.hdc,cols[dis]);
+        if (inf->fType == MFT_STRING && inf->dwTypeData)
         {
-          RECT cr;
-          GetClientRect(hwnd,&cr);
-          HBRUSH br=CreateSolidBrush(GetSysColor(COLOR_3DFACE));
-          HPEN pen=CreatePen(PS_SOLID,0,GetSysColor(COLOR_3DSHADOW));
-          HGDIOBJ oldbr = SelectObject(ps.hdc,br);
-          HGDIOBJ oldpen = SelectObject(ps.hdc,pen);
-          Rectangle(ps.hdc,cr.left,cr.top,cr.right-1,cr.bottom-1);
-          SetBkMode(ps.hdc,TRANSPARENT);
-          int cols[2]={ GetSysColor(COLOR_BTNTEXT),GetSysColor(COLOR_3DHILIGHT)};
-          HMENU__ *menu = (HMENU__*)GetWindowLongPtr(hwnd,GWLP_USERDATA);
-          int x;
-          for (x=0; x < menu->items.GetSize(); x++)
+          const char *pt2 = strstr(inf->dwTypeData,"\t");
+          DrawText(ps.hdc,inf->dwTypeData,pt2 ? pt2-inf->dwTypeData : -1,&r,DT_VCENTER|DT_SINGLELINE);
+          if (pt2)
           {
-            MENUITEMINFO *inf = menu->items.Get(x);
-            RECT r={lcol,x*itemheight,cr.right,(x+1)*itemheight};
-            bool dis = !!(inf->fState & MF_GRAYED);
-            SetTextColor(ps.hdc,cols[dis]);
-            if (inf->fType == MFT_STRING && inf->dwTypeData)
-            {
-              const char *pt2 = strstr(inf->dwTypeData,"\t");
-              DrawText(ps.hdc,inf->dwTypeData,pt2 ? pt2-inf->dwTypeData : -1,&r,DT_VCENTER|DT_SINGLELINE);
-              if (pt2)
-              {
-                RECT tr=r; tr.right-=rcol;
-                DrawText(ps.hdc,pt2+1,-1,&tr,DT_VCENTER|DT_SINGLELINE|DT_RIGHT);
-              }
-            }
-            else 
-            {
-              MoveToEx(ps.hdc,r.left - lcol/2,(r.top+r.bottom)/2,NULL);
-              LineTo(ps.hdc,r.right - rcol*3/2,(r.top+r.bottom)/2);
-            }
-            if (inf->hSubMenu) 
-            {
-               RECT r2=r; r2.left = r2.right - rcol;
-               DrawText(ps.hdc,">",-1,&r2,DT_VCENTER|DT_RIGHT|DT_SINGLELINE);
-            }
-            if (inf->fState&MF_CHECKED)
-            {
-               RECT r2=r; r2.left = 0; r2.right=lcol;
-               DrawText(ps.hdc,"X",-1,&r2,DT_VCENTER|DT_CENTER|DT_SINGLELINE);
-            }
+            RECT tr=r;
+            tr.right-=rcol;
+            DrawText(ps.hdc,pt2+1,-1,&tr,DT_VCENTER|DT_SINGLELINE|DT_RIGHT);
           }
-          SelectObject(ps.hdc,oldbr);
-          SelectObject(ps.hdc,oldpen);
-          DeleteObject(br);
-          DeleteObject(pen);
-          EndPaint(hwnd,&ps); 
-        }       
-      }
-    break;
-    case WM_TIMER:
-      if (wParam==1)
-      {
-        HWND h = GetFocus();
-        if (h!=hwnd)
+        }
+        else
         {
-          int a = h ? m_trackingMenus.Find(h) : -1;
-          if (a<0 || a < m_trackingMenus.Find(hwnd)) DestroyWindow(hwnd); 
+          MoveToEx(ps.hdc,r.left - lcol/2,(r.top+r.bottom)/2,NULL);
+          LineTo(ps.hdc,r.right - rcol*3/2,(r.top+r.bottom)/2);
+        }
+        if (inf->hSubMenu)
+        {
+          RECT r2=r;
+          r2.left = r2.right - rcol;
+          DrawText(ps.hdc,">",-1,&r2,DT_VCENTER|DT_RIGHT|DT_SINGLELINE);
+        }
+        if (inf->fState&MF_CHECKED)
+        {
+          RECT r2=r;
+          r2.left = 0;
+          r2.right=lcol;
+          DrawText(ps.hdc,"X",-1,&r2,DT_VCENTER|DT_CENTER|DT_SINGLELINE);
         }
       }
-    break;
-    case WM_DESTROY:
+      SelectObject(ps.hdc,oldbr);
+      SelectObject(ps.hdc,oldpen);
+      DeleteObject(br);
+      DeleteObject(pen);
+      EndPaint(hwnd,&ps);
+    }
+  }
+  break;
+  case WM_TIMER:
+    if (wParam==1)
+    {
+      HWND h = GetFocus();
+      if (h!=hwnd)
       {
-        int a = m_trackingMenus.Find(hwnd);
-        m_trackingMenus.Delete(a);
-        if (m_trackingMenus.Get(a)) DestroyWindow(m_trackingMenus.Get(a));
+        int a = h ? m_trackingMenus.Find(h) : -1;
+        if (a<0 || a < m_trackingMenus.Find(hwnd)) DestroyWindow(hwnd);
       }
+    }
     break;
-    case WM_LBUTTONUP:
-    case WM_RBUTTONUP:
+  case WM_DESTROY:
+  {
+    int a = m_trackingMenus.Find(hwnd);
+    m_trackingMenus.Delete(a);
+    if (m_trackingMenus.Get(a)) DestroyWindow(m_trackingMenus.Get(a));
+  }
+  break;
+  case WM_LBUTTONUP:
+  case WM_RBUTTONUP:
+  {
+    RECT r;
+    GetClientRect(hwnd,&r);
+    if (GET_X_LPARAM(lParam)>=r.left && GET_X_LPARAM(lParam)<r.right)
+    {
+      int which = GET_Y_LPARAM(lParam)/itemheight;
+      HMENU__ *menu = (HMENU__*)GetWindowLongPtr(hwnd,GWLP_USERDATA);
+      MENUITEMINFO *inf = menu->items.Get(which);
+      if (inf)
       {
-        RECT r;
-        GetClientRect(hwnd,&r);
-        if (GET_X_LPARAM(lParam)>=r.left && GET_X_LPARAM(lParam)<r.right)
+        if (inf->fState&MF_GRAYED) { }
+        else if (inf->hSubMenu)
         {
-          int which = GET_Y_LPARAM(lParam)/itemheight;
-          HMENU__ *menu = (HMENU__*)GetWindowLongPtr(hwnd,GWLP_USERDATA);
-          MENUITEMINFO *inf = menu->items.Get(which);
-          if (inf) 
-          {
-            if (inf->fState&MF_GRAYED){ }
-            else if (inf->hSubMenu)
-            {
-              int a = m_trackingMenus.Find(hwnd);
-              HWND next = m_trackingMenus.Get(a+1);
-              if (next) DestroyWindow(next); 
+          int a = m_trackingMenus.Find(hwnd);
+          HWND next = m_trackingMenus.Get(a+1);
+          if (next) DestroyWindow(next);
 
-              m_trackingPt.x=r.right;
-              m_trackingPt.y=r.top + which*itemheight;
-              ClientToScreen(hwnd,&m_trackingPt);
-              submenuWndProc(new HWND__(NULL,0,NULL,"menu",false,submenuWndProc,NULL),WM_CREATE,0,(LPARAM)inf->hSubMenu);
-            }
-            else if (inf->wID) m_trackingRet = inf->wID;
-          }
-          else DestroyWindow(hwnd);
+          m_trackingPt.x=r.right;
+          m_trackingPt.y=r.top + which*itemheight;
+          ClientToScreen(hwnd,&m_trackingPt);
+          submenuWndProc(new HWND__(NULL,0,NULL,"menu",false,submenuWndProc,NULL),WM_CREATE,0,(LPARAM)inf->hSubMenu);
         }
-        else DestroyWindow(hwnd);
+        else if (inf->wID) m_trackingRet = inf->wID;
       }
-    break;
+      else DestroyWindow(hwnd);
+    }
+    else DestroyWindow(hwnd);
+  }
+  break;
   }
   return DefWindowProc(hwnd,uMsg,wParam,lParam);
 }
@@ -502,9 +519,9 @@ int TrackPopupMenu(HMENU hMenu, int flags, int xpos, int ypos, int resvd, HWND h
     if (h) DestroyWindow(h);
     x--;
   }
-  if (!(flags&TPM_NONOTIFY) && m_trackingRet>0) 
+  if (!(flags&TPM_NONOTIFY) && m_trackingRet>0)
     SendMessage(hwnd,WM_COMMAND,m_trackingRet,0);
-  
+
   return m_trackingRet>0?m_trackingRet:0;
 }
 
@@ -513,8 +530,9 @@ int TrackPopupMenu(HMENU hMenu, int flags, int xpos, int ypos, int resvd, HWND h
 
 void SWELL_Menu_AddMenuItem(HMENU hMenu, const char *name, int idx, int flags)
 {
-  MENUITEMINFO mi={sizeof(mi),MIIM_ID|MIIM_STATE|MIIM_TYPE,MFT_STRING,
-    (flags)?MFS_GRAYED:0,idx,NULL,NULL,NULL,0,(char *)name};
+  MENUITEMINFO mi= {sizeof(mi),MIIM_ID|MIIM_STATE|MIIM_TYPE,MFT_STRING,
+                    (flags)?MFS_GRAYED:0,idx,NULL,NULL,NULL,0,(char *)name
+                   };
   if (!name)
   {
     mi.fType = MFT_SEPARATOR;
@@ -540,7 +558,7 @@ static SWELL_MenuResourceIndex *resById(SWELL_MenuResourceIndex *head, const cha
 HMENU SWELL_LoadMenu(SWELL_MenuResourceIndex *head, const char *resid)
 {
   SWELL_MenuResourceIndex *p;
-  
+
   if (!(p=resById(head,resid))) return 0;
   HMENU hMenu=CreatePopupMenu();
   if (hMenu) p->createFunc(hMenu);
@@ -583,9 +601,9 @@ int SWELL_GenerateMenuFromList(HMENU hMenu, const void *_list, int listsz)
     int cnt=1;
     if (!list->name) SWELL_Menu_AddMenuItem(hMenu,NULL,-1,0);
     else if (!strcmp(list->name,SWELL_MENUGEN_ENDPOPUP)) return list + 1 - (SWELL_MenuGen_Entry *)_list;
-    else if (!strncmp(list->name,SWELL_MENUGEN_POPUP_PREFIX,l1)) 
-    { 
-      MENUITEMINFO mi={sizeof(mi),MIIM_SUBMENU|MIIM_STATE|MIIM_TYPE,MFT_STRING,0,0,CreatePopupMenuEx(list->name+l1),NULL,NULL,0,(char *)list->name+l1};
+    else if (!strncmp(list->name,SWELL_MENUGEN_POPUP_PREFIX,l1))
+    {
+      MENUITEMINFO mi= {sizeof(mi),MIIM_SUBMENU|MIIM_STATE|MIIM_TYPE,MFT_STRING,0,0,CreatePopupMenuEx(list->name+l1),NULL,NULL,0,(char *)list->name+l1};
       cnt += SWELL_GenerateMenuFromList(mi.hSubMenu,list+1,listsz-1);
       InsertMenuItem(hMenu,GetMenuItemCount(hMenu),TRUE,&mi);
     }

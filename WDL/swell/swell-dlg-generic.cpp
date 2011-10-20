@@ -18,7 +18,7 @@ bool SWELL_owned_windows_levelincrease=false;
 
 static SWELL_DialogResourceIndex *resById(SWELL_DialogResourceIndex *reshead, const char *resid)
 {
-	//printf("SWELL_DialogResourceIndex()\n");
+  //printf("SWELL_DialogResourceIndex()\n");
   SWELL_DialogResourceIndex *p=reshead;
   while (p)
   {
@@ -29,8 +29,8 @@ static SWELL_DialogResourceIndex *resById(SWELL_DialogResourceIndex *reshead, co
 }
 
 // keep list of modal dialogs
-struct modalDlgRet { 
-  HWND hwnd; 
+struct modalDlgRet {
+  HWND hwnd;
   bool has_ret;
   int ret;
 };
@@ -40,18 +40,18 @@ static WDL_PtrList<modalDlgRet> s_modalDialogs;
 
 HWND DialogBoxIsActive()
 {
-	//printf("DialogBoxIsActive()\n");
+  //printf("DialogBoxIsActive()\n");
   return s_modalDialogs.GetSize() ? s_modalDialogs.Get(s_modalDialogs.GetSize()-1)->hwnd : NULL;
 }
 
 void EndDialog(HWND wnd, int ret)
-{   
-	printf("EndDialog()\n");
+{
+  printf("EndDialog()\n");
   if (!wnd) return;
-  
+
   int x;
   for (x = 0; x < s_modalDialogs.GetSize(); x ++)
-    if (s_modalDialogs.Get(x)->hwnd == wnd)  
+    if (s_modalDialogs.Get(x)->hwnd == wnd)
     {
       s_modalDialogs.Get(x)->has_ret=true;
       s_modalDialogs.Get(x)->ret = ret;
@@ -62,7 +62,7 @@ void EndDialog(HWND wnd, int ret)
 
 int SWELL_DialogBox(SWELL_DialogResourceIndex *reshead, const char *resid, HWND parent,  DLGPROC dlgproc, LPARAM param)
 {
-	printf("SWELL_DialogBox()\n");
+  printf("SWELL_DialogBox()\n");
   SWELL_DialogResourceIndex *p=resById(reshead,resid);
   if (resid) // allow modal dialogs to be created without template
   {
@@ -82,7 +82,10 @@ int SWELL_DialogBox(SWELL_DialogResourceIndex *reshead, const char *resid, HWND 
     HWND a = SWELL_topwindows;
     while (a)
     {
-      if (a->m_enabled && a != hwnd) { EnableWindow(a,FALSE); enwnds.Add(a); }
+      if (a->m_enabled && a != hwnd) {
+        EnableWindow(a,FALSE);
+        enwnds.Add(a);
+      }
       a = a->m_next;
     }
 
@@ -111,17 +114,17 @@ int SWELL_DialogBox(SWELL_DialogResourceIndex *reshead, const char *resid, HWND 
 
 HWND SWELL_CreateDialog(SWELL_DialogResourceIndex *reshead, const char *resid, HWND parent, DLGPROC dlgproc, LPARAM param)
 {
-	//printf("SWELL_CreateDialog()\n");
+  //printf("SWELL_CreateDialog()\n");
   SWELL_DialogResourceIndex *p=resById(reshead,resid);
   if (!p&&resid) return 0;
-  
-  RECT r={0,0,p?p->width : 300, p?p->height : 200};
+
+  RECT r= {0,0,p?p->width : 300, p?p->height : 200};
   HWND owner=NULL;
 
-  if ((!p || (p->windowTypeFlags&SWELL_DLG_WS_CHILD)) && parent) 
+  if ((!p || (p->windowTypeFlags&SWELL_DLG_WS_CHILD)) && parent)
   {
-  } 
-  else 
+  }
+  else
   {
     owner = parent;
     parent = NULL; // top level window
@@ -146,37 +149,38 @@ HWND SWELL_CreateDialog(SWELL_DialogResourceIndex *reshead, const char *resid, H
 
     //HWND hFoc=m_children;
 //    while (hFoc && !hFoc->m_wantfocus) hFoc=hFoc->m_next;
- //   if (!hFoc) hFoc=this;
-  //  if (dlgproc(this,WM_INITDIALOG,(WPARAM)hFoc,0)&&hFoc) SetFocus(hFoc);
+//   if (!hFoc) hFoc=this;
+    //  if (dlgproc(this,WM_INITDIALOG,(WPARAM)hFoc,0)&&hFoc) SetFocus(hFoc);
 
     h->m_dlgproc(h,WM_INITDIALOG,0,param);
-  } 
+  }
   else
   {
     h->m_wndproc = (WNDPROC)dlgproc;
     h->m_wndproc(h,WM_CREATE,0,param);
   }
-    
+
   return h;
 }
 
 
-HMENU SWELL_GetDefaultWindowMenu() { 
-	printf("SWELL_GetDefaultWindowMenu()\n");
-	return g_swell_defaultmenu; }
+HMENU SWELL_GetDefaultWindowMenu() {
+  printf("SWELL_GetDefaultWindowMenu()\n");
+  return g_swell_defaultmenu;
+}
 void SWELL_SetDefaultWindowMenu(HMENU menu)
 {
-	printf("SWELL_SetDefaultWindowMenu()\n");
+  printf("SWELL_SetDefaultWindowMenu()\n");
   g_swell_defaultmenu=menu;
 }
-HMENU SWELL_GetDefaultModalWindowMenu() 
-{ 
-	printf("SWELL_GetDefaultModalWindowMenu()\n");
-  return g_swell_defaultmenumodal; 
+HMENU SWELL_GetDefaultModalWindowMenu()
+{
+  printf("SWELL_GetDefaultModalWindowMenu()\n");
+  return g_swell_defaultmenumodal;
 }
 void SWELL_SetDefaultModalWindowMenu(HMENU menu)
 {
-	printf("SWELL_SetDefaultModalWindowMenu()\n");
+  printf("SWELL_SetDefaultModalWindowMenu()\n");
   g_swell_defaultmenumodal=menu;
 }
 
@@ -190,36 +194,36 @@ static void (*s_dragdropsrccallback)(const char*) = 0;
 
 void SWELL_InitiateDragDrop(HWND hwnd, RECT* srcrect, const char* srcfn, void (*callback)(const char* dropfn))
 {
-	printf("SWELL_InitiateDragDrop()\n");
+  printf("SWELL_InitiateDragDrop()\n");
   SWELL_FinishDragDrop();
 
   if (1) return;
 
   s_dragdropsrcfn = strdup(srcfn);
   s_dragdropsrccallback = callback;
-  
+
   char* p = s_dragdropsrcfn+strlen(s_dragdropsrcfn)-1;
   while (p >= s_dragdropsrcfn && *p != '.') --p;
   ++p;
-  
-} 
+
+}
 
 // owner owns srclist, make copies here etc
 void SWELL_InitiateDragDropOfFileList(HWND hwnd, RECT *srcrect, const char **srclist, int srccount, HICON icon)
 {
-	printf("SWELL_InitiateDragDropOfFileList()\n");
+  printf("SWELL_InitiateDragDropOfFileList()\n");
   SWELL_FinishDragDrop();
 
   if (1) return;
-  
+
 }
 
 void SWELL_FinishDragDrop()
 {
-	printf("SWELL_FinishDragDrop()\n");
+  printf("SWELL_FinishDragDrop()\n");
   free(s_dragdropsrcfn);
   s_dragdropsrcfn = 0;
-  s_dragdropsrccallback = 0;  
+  s_dragdropsrccallback = 0;
 }
 
 #endif
