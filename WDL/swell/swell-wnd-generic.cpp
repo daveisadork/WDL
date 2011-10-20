@@ -126,7 +126,7 @@ gboolean swell_onDraw(GtkWidget *widget, cairo_t *cr, gpointer data)
     gtk_widget_get_allocation (widget,&allocation);
     bool forceref = hwnd->m_backingstore->resize(allocation.width-allocation.x,allocation.height-allocation.y);
     LICE_SubBitmap tmpbm(hwnd->m_backingstore,allocation.x,allocation.y,allocation.width-allocation.x,allocation.height-allocation.y);
-    if (hwnd->m_backingstore && hwnd->m_oswindow)
+    if (hwnd->m_backingstore && hwnd->m_oswindow && GTK_IS_WINDOW(hwnd->m_oswindow))
     { 
       void SWELL_internalLICEpaint(HWND hwnd, LICE_IBitmap *bmout, int bmout_xpos, int bmout_ypos, bool forceref);
       SWELL_internalLICEpaint(hwnd, &tmpbm,allocation.x,allocation.y,forceref);
@@ -236,7 +236,7 @@ void swell_OSupdateWindowToScreen(HWND hwnd, RECT *rect)
 {
 	//printf("swell_OSupdateWindowToScreen()\n");
 #ifdef SWELL_LICE_GDI
-  if (hwnd && hwnd->m_backingstore && hwnd->m_oswindow)
+  if (hwnd && hwnd->m_backingstore && hwnd->m_oswindow && GTK_IS_WINDOW(hwnd->m_oswindow))
   {
     LICE_SubBitmap tmpbm(hwnd->m_backingstore,rect->left,rect->top,rect->right-rect->left,rect->bottom-rect->top);
     cairo_surface_t *surface=cairo_image_surface_create_for_data((guchar*)tmpbm.getBits(),CAIRO_FORMAT_RGB24,tmpbm.getWidth(),tmpbm.getHeight(),tmpbm.getRowSpan()*4);
