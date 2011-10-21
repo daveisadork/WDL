@@ -486,7 +486,7 @@ static void swell_gdkEventHandler(GdkEvent *evt, gpointer data)
       }
       break;
       default:
-        printf("msg: %d\n",evt->type);
+        //printf("msg: %d\n",evt->type);
         break;
       }
 
